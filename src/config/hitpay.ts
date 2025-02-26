@@ -36,6 +36,8 @@ export const HITPAY_CONFIG = {
   SANDBOX: process.env.NODE_ENV !== 'production',
   HEADERS: {
     'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   }
