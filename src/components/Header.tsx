@@ -1,0 +1,90 @@
+import React, { useState } from 'react';
+import { Plane, Package, Menu, X } from 'lucide-react';
+import { HomeButton } from './ui/HomeButton';
+import { AuthControls } from './auth/AuthControls';
+
+interface HeaderProps {
+  onHomeClick: () => void;
+  onBookFlightClick: () => void;
+  onBookCargoClick: () => void;
+}
+
+export default function Header({ 
+  onHomeClick, 
+  onBookFlightClick, 
+  onBookCargoClick,
+}: HeaderProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const handleMenuItemClick = (handler: () => void) => {
+    setIsMenuOpen(false);
+    handler();
+  };
+
+  return (
+    <header className="bg-sky-700 text-white relative" style={{ zIndex: 50 }}>
+      <div className="container mx-auto px-4">
+        <div className="flex justify-between items-center h-16">
+          <div className="flex items-center space-x-4">
+            <button onClick={onHomeClick} className="flex items-center gap-2">
+              <Plane className="h-8 w-8" />
+              <span className="text-xl font-bold">Timor Pacific Logistics</span>
+            </button>
+          </div>
+          
+          <div className="hidden md:flex items-center space-x-6">
+            <HomeButton onClick={onHomeClick} />
+            <button 
+              onClick={onBookFlightClick}
+              className="hover:text-sky-200 flex items-center gap-2"
+            >
+              <Plane className="h-5 w-5" />
+              Book Flight
+            </button>
+            <button 
+              onClick={onBookCargoClick}
+              className="hover:text-sky-200 flex items-center gap-2"
+            >
+              <Package className="h-5 w-5" />
+              Book Cargo
+            </button>
+            <AuthControls />
+          </div>
+
+          <button 
+            className="md:hidden"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+            {isMenuOpen ? <X /> : <Menu />}
+          </button>
+        </div>
+
+        {/* Mobile menu */}
+        {isMenuOpen && (
+          <div className="md:hidden py-4 space-y-4">
+            <HomeButton onClick={() => handleMenuItemClick(onHomeClick)} />
+            <div className="flex flex-col space-y-4">
+              <button 
+                onClick={() => handleMenuItemClick(onBookFlightClick)}
+                className="hover:text-sky-200 flex items-center gap-2"
+              >
+                <Plane className="h-5 w-5 shrink-0" />
+                <span>Book Flight</span>
+              </button>
+              <button 
+                onClick={() => handleMenuItemClick(onBookCargoClick)}
+                className="hover:text-sky-200 flex items-center gap-2"
+              >
+                <Package className="h-5 w-5 shrink-0" />
+                <span>Book Cargo</span>
+              </button>
+              <div className="pt-2 border-t border-sky-600">
+                <AuthControls />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </header>
+  );
+}
