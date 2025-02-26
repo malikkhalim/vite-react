@@ -54,7 +54,8 @@ class HitPayClient {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'Origin': window.location.origin,
-      'mode': 'cors'
+      'mode': 'cors',
+      'X-Requested-With': 'XMLHttpRequest',
     };
   }
 
