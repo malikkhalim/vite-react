@@ -33,7 +33,8 @@ export const HITPAY_CONFIG = {
   SUCCESS_URL: '/payment/success',
   CANCEL_URL: '/payment/cancel',
   CURRENCY: 'SGD',
-  SANDBOX: process.env.NODE_ENV !== 'production',
+  // SANDBOX: process.env.NODE_ENV !== 'production',
+  SANDBOX: true,
   HEADERS: {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
