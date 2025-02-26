@@ -9,8 +9,8 @@ class HitPayClient {
   private scriptLoaded: boolean = false;
 
   private constructor() {
-    this.baseUrl = HITPAY_CONFIG.SANDBOX 
-      ? HITPAY_CONFIG.SANDBOX_API_URL 
+    this.baseUrl = HITPAY_CONFIG.SANDBOX
+      ? HITPAY_CONFIG.SANDBOX_API_URL
       : HITPAY_CONFIG.API_URL;
   }
 
@@ -26,7 +26,7 @@ class HitPayClient {
 
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = HITPAY_CONFIG.SANDBOX 
+      script.src = HITPAY_CONFIG.SANDBOX
         ? 'https://sandbox.hit-pay.com/hitpay.js'
         : 'https://hit-pay.com/hitpay.js';
       script.async = true;
@@ -63,13 +63,18 @@ class HitPayClient {
     try {
       // Use proxy URL for development to avoid CORS
       const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const url = isLocalDev 
-        ? `${this.proxyUrl}${endpoint}` 
+      const url = isLocalDev
+        ? `${this.proxyUrl}${endpoint}`
         : `${this.baseUrl}${endpoint}`;
-      
+
+
+
+      console.log('API Key Now:', HITPAY_CONFIG.API_KEY);
+      console.log('API Key:', HITPAY_CONFIG.API_KEY ? 'Present' : 'Missing');
+      console.log('Sandbox Mode:', HITPAY_CONFIG.SANDBOX);
       console.log("Making request to:", url);
       console.log("Request body:", options.body);
-      
+
       const response = await fetch(url, {
         ...options,
         headers: this.getHeaders()
@@ -91,7 +96,7 @@ class HitPayClient {
       return await response.json();
     } catch (error) {
       console.error("Payment API error:", error);
-      
+
       if (error instanceof HitPayError) {
         throw error;
       }
@@ -113,16 +118,16 @@ class HitPayClient {
   async createPayment(data: CreatePaymentRequest): Promise<PaymentResponse> {
     try {
       this.validateConfig();
-      
+
       let paymentMethods = data.payment_methods || ['card'];
       const validMethods = ['card', 'paynow_online', 'wechat'];
 
       paymentMethods = paymentMethods.filter(method => validMethods.includes(method));
-      
+
       if (paymentMethods.length === 0) {
         paymentMethods = ['card'];
       }
-      
+
       const payload = {
         ...data,
         payment_methods: paymentMethods,
@@ -132,7 +137,7 @@ class HitPayClient {
         send_email: true,
         allow_repeated_payments: false
       };
-  
+
       return this.makeRequest<PaymentResponse>('/payment-requests', {
         method: 'POST',
         body: JSON.stringify(payload)
@@ -161,7 +166,7 @@ class HitPayClient {
     }
 
     window.HitPay.init(
-      HITPAY_CONFIG.SANDBOX 
+      HITPAY_CONFIG.SANDBOX
         ? 'https://securecheckout.sandbox.hit-pay.com'
         : 'https://securecheckout.hit-pay.com',
       {
