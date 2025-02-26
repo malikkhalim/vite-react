@@ -39,7 +39,7 @@ export async function makeRequest<T>(
     const response = await withTimeout(
       fetch(endpoint, {
         ...fetchOptions,
-        mode: 'cors',
+        // mode: 'cors',
         credentials: 'omit'
       }),
       timeout
