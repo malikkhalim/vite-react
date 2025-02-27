@@ -2,7 +2,7 @@ export interface PaymentRequest {
   bookingReference: string;
   amount: number;
   currency: string;
-  method: 'card' | 'paynow_online';
+  method: 'credit_card' | 'paynow';
   returnUrl: string;
 }
 

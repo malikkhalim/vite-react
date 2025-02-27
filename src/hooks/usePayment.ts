@@ -3,7 +3,7 @@ import { PaymentMethod, PaymentDetails } from '../types/payment';
 import { generatePaymentReference } from '../utils/payment';
 
 export function usePayment(amount: number, onComplete: (details: PaymentDetails) => void) {
-  const [method, setMethod] = useState<PaymentMethod>('card');
+  const [method, setMethod] = useState<PaymentMethod>('credit_card');
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 

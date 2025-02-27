@@ -29,7 +29,7 @@ export function PaymentForm({
   contactDetails, 
   onSuccess 
 }: PaymentFormProps) {
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('credit_card');
   const { createPayment, loading, error } = useHitPayPayment({
     onSuccess,
     onError: console.error

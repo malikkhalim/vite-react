@@ -1,4 +1,4 @@
-export type PaymentMethod = 'card' | 'paynow_online';
+export type PaymentMethod = 'credit_card' | 'paynow';
 
 export interface PaymentDetails {
   method: PaymentMethod;
