@@ -94,21 +94,28 @@ class HitPayClient {
   }
 
   async createPayment(data: CreatePaymentRequest): Promise<PaymentResponse> {
-    await this.loadScript();
-
-    const payload = {
-      ...data,
-      redirect_url: `${window.location.origin}${HITPAY_CONFIG.SUCCESS_URL}`,
-      webhook: `${window.location.origin}${HITPAY_CONFIG.WEBHOOK_PATH}`,
-      cancel_url: `${window.location.origin}${HITPAY_CONFIG.CANCEL_URL}`,
-      send_email: true,
-      allow_repeated_payments: false
-    };
-
-    return this.makeRequest<PaymentResponse>('/payment-requests', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
+    try {
+      const response = await fetch('/api/payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...data,
+          redirect_url: `${window.location.origin}${HITPAY_CONFIG.SUCCESS_URL}`,
+          webhook: `${window.location.origin}${HITPAY_CONFIG.WEBHOOK_PATH}`,
+          cancel_url: `${window.location.origin}${HITPAY_CONFIG.CANCEL_URL}`
+        })
+      });
+  
+      if (!response.ok) {
+        throw new Error('Payment request failed');
+      }
+  
+      return await response.json();
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Payment creation failed');
+    }
   }
 
   async getPaymentStatus(paymentId: string): Promise<PaymentResponse> {
