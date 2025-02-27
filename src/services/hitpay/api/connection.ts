@@ -15,7 +15,7 @@ export async function checkConnection(): Promise<boolean> {
           'Accept': 'application/json',
           'Origin': window.location.origin
         },
-        // mode: 'cors',
+        mode: 'cors',
         credentials: 'omit'
       }
     );

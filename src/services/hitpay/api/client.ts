@@ -5,12 +5,11 @@ import type { CreatePaymentRequest, PaymentResponse } from '../types';
 class HitPayClient {
   private static instance: HitPayClient;
   private baseUrl: string;
-  private proxyUrl: string = '/api/hitpay';
   private scriptLoaded: boolean = false;
 
   private constructor() {
-    this.baseUrl = HITPAY_CONFIG.SANDBOX
-      ? HITPAY_CONFIG.SANDBOX_API_URL
+    this.baseUrl = HITPAY_CONFIG.SANDBOX 
+      ? HITPAY_CONFIG.SANDBOX_API_URL 
       : HITPAY_CONFIG.API_URL;
   }
 
@@ -26,7 +25,7 @@ class HitPayClient {
 
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = HITPAY_CONFIG.SANDBOX
+      script.src = HITPAY_CONFIG.SANDBOX 
         ? 'https://sandbox.hit-pay.com/hitpay.js'
         : 'https://hit-pay.com/hitpay.js';
       script.async = true;
@@ -52,37 +51,18 @@ class HitPayClient {
     return {
       'X-BUSINESS-API-KEY': HITPAY_CONFIG.API_KEY,
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Origin': window.location.origin,
-      'mode': 'cors',
-      'X-Requested-With': 'XMLHttpRequest',
+      'Accept': 'application/json'
     };
   }
 
   private async makeRequest<T>(endpoint: string, options: RequestInit): Promise<T> {
     try {
-      // Use proxy URL for development to avoid CORS
-      const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const url = isLocalDev
-        ? `${this.proxyUrl}${endpoint}`
-        : `${this.baseUrl}${endpoint}`;
-
-
-
-      console.log('API Key Now:', HITPAY_CONFIG.API_KEY);
-      console.log('API Key:', HITPAY_CONFIG.API_KEY ? 'Present' : 'Missing');
-      console.log('Sandbox Mode:', HITPAY_CONFIG.SANDBOX);
-      console.log("Making request to:", url);
-      console.log("Request body:", options.body);
-
+      const url = `${this.baseUrl}${endpoint}`;
+      
       const response = await fetch(url, {
         ...options,
         headers: this.getHeaders()
       });
-
-      const responseData = await response.json();
-      console.log("Response status:", response.status);
-      console.log("Response data:", responseData);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: response.statusText }));
@@ -95,19 +75,17 @@ class HitPayClient {
 
       return await response.json();
     } catch (error) {
-      console.error("Payment API error:", error);
-
       if (error instanceof HitPayError) {
         throw error;
       }
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
         throw new HitPayError(
-          'Unable to connect to payment service. Please check your internet connection and try again.',
+          'Unable to connect to payment service. Please try again.',
           'NETWORK_ERROR'
         );
       }
       throw new HitPayError(
-        'An unexpected error occurred with the payment service',
+        'An unexpected error occurred',
         'UNKNOWN_ERROR',
         undefined,
         error
@@ -116,36 +94,21 @@ class HitPayClient {
   }
 
   async createPayment(data: CreatePaymentRequest): Promise<PaymentResponse> {
-    try {
-      this.validateConfig();
+    await this.loadScript();
 
-      let paymentMethods = data.payment_methods || ['card'];
-      const validMethods = ['card', 'paynow_online', 'wechat'];
+    const payload = {
+      ...data,
+      redirect_url: `${window.location.origin}${HITPAY_CONFIG.SUCCESS_URL}`,
+      webhook: `${window.location.origin}${HITPAY_CONFIG.WEBHOOK_PATH}`,
+      cancel_url: `${window.location.origin}${HITPAY_CONFIG.CANCEL_URL}`,
+      send_email: true,
+      allow_repeated_payments: false
+    };
 
-      paymentMethods = paymentMethods.filter(method => validMethods.includes(method));
-
-      if (paymentMethods.length === 0) {
-        paymentMethods = ['card'];
-      }
-
-      const payload = {
-        ...data,
-        payment_methods: paymentMethods,
-        redirect_url: `${window.location.origin}${HITPAY_CONFIG.SUCCESS_URL}`,
-        webhook: `${window.location.origin}${HITPAY_CONFIG.WEBHOOK_PATH}`,
-        cancel_url: `${window.location.origin}${HITPAY_CONFIG.CANCEL_URL}`,
-        send_email: true,
-        allow_repeated_payments: false
-      };
-
-      return this.makeRequest<PaymentResponse>('/payment-requests', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-    } catch (error) {
-      console.error("Payment creation error:", error);
-      throw error;
-    }
+    return this.makeRequest<PaymentResponse>('/payment-requests', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
   }
 
   async getPaymentStatus(paymentId: string): Promise<PaymentResponse> {
@@ -166,7 +129,7 @@ class HitPayClient {
     }
 
     window.HitPay.init(
-      HITPAY_CONFIG.SANDBOX
+      HITPAY_CONFIG.SANDBOX 
         ? 'https://securecheckout.sandbox.hit-pay.com'
         : 'https://securecheckout.hit-pay.com',
       {
