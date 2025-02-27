@@ -29,34 +29,31 @@ export class PaymentAPI {
   //   }
   // }
 
-  static async createPayment(data: Omit<CreatePaymentRequest, 'reference_number'>): Promise<PaymentResponse> {
+  static async createPayment(data: CreatePaymentRequest): Promise<PaymentResponse> {
     try {
-      // Add origin to the URLs
       const origin = window.location.origin;
       
       const paymentData = {
         ...data,
-        currency: HITPAY_CONFIG.CURRENCY,
-        reference_number: data.reference_number || `PAY-${Date.now()}`,
         redirect_url: `${origin}${HITPAY_CONFIG.SUCCESS_URL}`,
         webhook: `${origin}${HITPAY_CONFIG.WEBHOOK_PATH}`,
         cancel_url: `${origin}${HITPAY_CONFIG.CANCEL_URL}`
       };
-
-      // Call your own API endpoint instead of HitPay directly
-      const response = await fetch('/api/create-payment', {
+  
+      const response = await fetch('/api/payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(paymentData)
       });
-
+  
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Payment request failed');
+        const errorText = await response.text();
+        console.error('Payment API error:', errorText);
+        throw new Error('Payment request failed');
       }
-
+  
       return await response.json();
     } catch (error) {
       console.error('Payment creation failed:', error);
