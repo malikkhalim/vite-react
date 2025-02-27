@@ -1,6 +1,6 @@
 export type CargoType = 'general' | 'pharma' | 'perishable' | 'dangerous' | 'special';
 export type PackageType = 'box' | 'pallet' | 'container' | 'crate' | 'drum' | 'bag';
-export type PaymentMethod = 'credit_card' | 'company_account';
+export type PaymentMethod = 'card' | 'company_account';
 
 export interface CargoSearchData {
   from: string;

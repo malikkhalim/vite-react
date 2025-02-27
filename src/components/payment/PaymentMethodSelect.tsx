@@ -11,13 +11,13 @@ interface PaymentMethodSelectProps {
 export function PaymentMethodSelect({ value, onChange, disabled }: PaymentMethodSelectProps) {
   const methods = [
     {
-      id: 'credit_card',
+      id: 'card',
       label: 'Credit Card',
       description: 'Pay securely with credit or debit card',
       icon: CreditCard
     },
     {
-      id: 'paynow',
+      id: 'paynow_online',
       label: 'PayNow',
       description: 'Pay instantly with PayNow QR',
       icon: QrCode

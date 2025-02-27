@@ -3,13 +3,13 @@ import { CreditCard, QrCode, Building } from 'lucide-react';
 
 export const PAYMENT_METHODS: PaymentMethodInfo[] = [
   {
-    id: 'credit_card',
+    id: 'card',
     label: 'Credit Card',
     description: 'Pay securely with credit or debit card',
     icon: CreditCard
   },
   {
-    id: 'paynow',
+    id: 'paynow_online',
     label: 'PayNow',
     description: 'Pay instantly with PayNow QR',
     icon: QrCode
