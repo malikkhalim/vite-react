@@ -1,13 +1,11 @@
 import { HITPAY_CONFIG } from '../../../config/hitpay';
 import { HitPayError } from './errors';
-import { MockPaymentService } from '../mock';
 import type { CreatePaymentRequest, PaymentResponse } from '../types';
 
 class HitPayClient {
   private static instance: HitPayClient;
   private baseUrl: string;
   private scriptLoaded: boolean = false;
-  private useMock: boolean = process.env.NODE_ENV === 'development';
 
   private constructor() {
     this.baseUrl = HITPAY_CONFIG.SANDBOX 
@@ -60,6 +58,7 @@ class HitPayClient {
   private async makeRequest<T>(endpoint: string, options: RequestInit): Promise<T> {
     try {
       const url = `${this.baseUrl}${endpoint}`;
+      
       const response = await fetch(url, {
         ...options,
         headers: this.getHeaders()
@@ -95,12 +94,6 @@ class HitPayClient {
   }
 
   async createPayment(data: CreatePaymentRequest): Promise<PaymentResponse> {
-    // Use mock service in development
-    if (this.useMock) {
-      console.warn('Using mock payment service in development');
-      return MockPaymentService.createPayment(data);
-    }
-    
     await this.loadScript();
 
     const payload = {
@@ -119,12 +112,6 @@ class HitPayClient {
   }
 
   async getPaymentStatus(paymentId: string): Promise<PaymentResponse> {
-    // Use mock service in development
-    if (this.useMock) {
-      console.warn('Using mock payment status in development');
-      return MockPaymentService.getPaymentStatus(paymentId);
-    }
-    
     return this.makeRequest<PaymentResponse>(`/payment-requests/${paymentId}`, {
       method: 'GET'
     });
