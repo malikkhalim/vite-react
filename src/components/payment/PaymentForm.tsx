@@ -55,7 +55,7 @@ export function PaymentForm({
         name: contactDetails.contactName,
         phone: contactDetails.contactPhone,
         // payment_methods: [paymentMethod]
-        payment_methods: 'paynow_online'
+        payment_methods: ['paynow_online']
       });
     } catch (err) {
       console.error('Payment creation error:', err);
