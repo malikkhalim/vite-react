@@ -5,6 +5,7 @@ import { PaymentSummary } from './PaymentSummary';
 import { useHitPayPayment } from '../../hooks/useHitPayPayment';
 import { formatCurrency } from '../../utils/formatting';
 import type { PaymentMethod } from '../../types/payment';
+import { HitPayCheckout } from './HitPayCheckout';
 
 interface PaymentFormProps {
   amount: number;
@@ -22,47 +23,63 @@ interface PaymentFormProps {
   onSuccess: () => void;
 }
 
-export function PaymentForm({ 
-  amount, 
+export function PaymentForm({
+  amount,
   passengers,
   flightPrice,
-  contactDetails, 
-  onSuccess 
+  contactDetails,
+  onSuccess
 }: PaymentFormProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('credit_card');
-  const { createPayment, loading, error } = useHitPayPayment({
+  const [showHitPayCheckout, setShowHitPayCheckout] = useState(false);
+  const { loading, error } = useHitPayPayment({
     onSuccess,
     onError: console.error
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    await createPayment({
-      amount: Number(amount.toFixed(2)),
-      currency: 'USD',
-      email: contactDetails.contactEmail,
-      name: contactDetails.contactName,
-      phone: contactDetails.contactPhone,
-      payment_methods: [paymentMethod]
-    });
+  const handlePaymentSuccess = () => {
+    onSuccess();
   };
+
+  const handlePaymentError = (error: any) => {
+    console.error('Payment error:', error);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setShowHitPayCheckout(true);
+  };
+
+  const referenceNumber = `BOOK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
 
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-8">
       <h2 className="text-2xl font-bold text-gray-900">Payment Details</h2>
 
-      <PaymentSummary 
+      <PaymentSummary
         amount={amount}
         passengers={passengers}
         flightPrice={flightPrice}
       />
 
-      <PaymentMethodSelect
+      {/* Payment method selection is commented out as per original code */}
+      {/* <PaymentMethodSelect
         value={paymentMethod}
         onChange={setPaymentMethod}
         disabled={loading}
-      />
+      /> */}
+
+      {showHitPayCheckout && (
+        <HitPayCheckout
+          amount={Number(amount.toFixed(2))}
+          email={contactDetails.contactEmail}
+          name={contactDetails.contactName}
+          phone={contactDetails.contactPhone}
+          referenceNumber={referenceNumber}
+          onSuccess={handlePaymentSuccess}
+          onError={handlePaymentError}
+        />
+      )}
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-md flex items-center gap-2 text-red-600">
@@ -81,7 +98,7 @@ export function PaymentForm({
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || showHitPayCheckout}
           className="w-full bg-sky-600 text-white py-3 rounded-md hover:bg-sky-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading ? (
