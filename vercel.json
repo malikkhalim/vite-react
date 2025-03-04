@@ -1,4 +1,10 @@
 {
+    "version": 2,
+    "rewrites": [
+      { "source": "/payment/success", "destination": "/index.html" },
+      { "source": "/payment/cancel", "destination": "/index.html" },
+      { "source": "/payment/failed", "destination": "/index.html" }
+    ],
     "functions": {
       "api/hitpay/payment-requests.js": {
         "memory": 128,
@@ -12,4 +18,3 @@
       }
     ]
   }
-  

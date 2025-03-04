@@ -1,9 +1,11 @@
 import { useState, useCallback } from 'react';
 import { useUserStore } from '../stores/userStore';
 
-// page type to include admin subpages
-export type PageType = 'home' | 'flight' | 'cargo' | 'profile' | 'bookings' | 
-  'admin' | 'admin-dashboard' | 'admin-settings' | 'admin-customers';
+// Enhanced page type to include payment pages
+export type PageType = 
+  'home' | 'flight' | 'cargo' | 'profile' | 'bookings' | 
+  'admin' | 'admin-dashboard' | 'admin-settings' | 'admin-customers' |
+  'payment-success' | 'payment-cancel' | 'payment-failed';
 
 export function usePageNavigation() {
   const [currentPage, setCurrentPage] = useState<PageType>('home');
@@ -32,6 +34,12 @@ export function usePageNavigation() {
   const navigateToPath = useCallback((path: string) => {
     const normalizedPath = path.startsWith('/') ? path.substring(1) : path;
     
+    // Handle payment routes
+    if (normalizedPath.startsWith('payment/success')) return navigateToPage('payment-success');
+    if (normalizedPath.startsWith('payment/cancel')) return navigateToPage('payment-cancel');
+    if (normalizedPath.startsWith('payment/failed')) return navigateToPage('payment-failed');
+    
+    // Handle standard routes
     if (normalizedPath === '') return navigateToPage('home');
     if (normalizedPath === 'flight') return navigateToPage('flight');
     if (normalizedPath === 'cargo') return navigateToPage('cargo');
@@ -59,6 +67,9 @@ export function usePageNavigation() {
     handleBookingsClick: useCallback(() => navigateToPage('bookings'), [navigateToPage]),
     handleAdminClick: useCallback(() => navigateToPage('admin-dashboard'), [navigateToPage]),
     handleAdminSettingsClick: useCallback(() => navigateToPage('admin-settings'), [navigateToPage]),
-    handleAdminCustomersClick: useCallback(() => navigateToPage('admin-customers'), [navigateToPage])
+    handleAdminCustomersClick: useCallback(() => navigateToPage('admin-customers'), [navigateToPage]),
+    handlePaymentSuccessPage: useCallback(() => navigateToPage('payment-success'), [navigateToPage]),
+    handlePaymentCancelPage: useCallback(() => navigateToPage('payment-cancel'), [navigateToPage]),
+    handlePaymentFailedPage: useCallback(() => navigateToPage('payment-failed'), [navigateToPage])
   };
 }

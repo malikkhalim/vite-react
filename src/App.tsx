@@ -6,6 +6,9 @@ import BookCargo from './pages/BookCargo';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminSettings from './pages/admin/Settings';
 import AdminCustomers from './pages/admin/Customers';
+import PaymentSuccess from './pages/payment/Success';
+import PaymentCancel from './pages/payment/Cancel';
+import PaymentFailed from './pages/payment/Failed';
 import { usePageNavigation } from './hooks/usePageNavigation';
 import { useUserStore } from './stores/userStore';
 
@@ -85,6 +88,17 @@ export default function App() {
       );
     }
 
+    // Check for payment routes in URL path
+    const path = window.location.pathname;
+    if (path.startsWith('/payment/success')) {
+      return <PaymentSuccess />;
+    } else if (path.startsWith('/payment/cancel')) {
+      return <PaymentCancel />;
+    } else if (path.startsWith('/payment/failed')) {
+      return <PaymentFailed />;
+    }
+
+    // Standard page routes
     switch (currentPage) {
       case 'flight':
         return <BookFlight />;
