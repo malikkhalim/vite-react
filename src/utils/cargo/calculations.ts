@@ -1,5 +1,5 @@
-import { CARGO_FEES, PICKUP_SERVICE } from './constants';
-import type { PackageDetails, CargoFees } from '../../types/cargo';
+import { PackageDetails, CargoFees, CargoType } from '../../types/cargo';
+import { AdminSettings } from '../../types/admin';
 
 export const calculateVolume = (dimensions: { length: number; width: number; height: number }): number => {
   const { length, width, height } = dimensions;
@@ -21,31 +21,51 @@ export const calculateTotalVolume = (packages: PackageDetails[]): number => {
   }, 0);
 };
 
-export const calculateCargoFees = (totalWeight: number): CargoFees => {
-  if (!totalWeight || totalWeight <= 0) {
+export const calculateCargoFees = (totalWeight: number, settings?: AdminSettings | null): CargoFees => {
+  if (!settings || !totalWeight || totalWeight <= 0) {
     return {
-      awbFee: CARGO_FEES.AWB_FEE,
+      awbFee: 25, // Default AWB fee
       screeningFee: 0,
       handlingFee: 0,
       cargoCharge: 0
     };
   }
 
+  const { cargoFees } = settings;
+  
   return {
-    awbFee: CARGO_FEES.AWB_FEE,
-    screeningFee: CARGO_FEES.SCREENING_FEE_PER_KG * totalWeight,
-    handlingFee: CARGO_FEES.HANDLING_FEE_PER_KG * totalWeight,
-    cargoCharge: CARGO_FEES.CARGO_CHARGE_PER_KG * totalWeight,
+    awbFee: cargoFees.awbFee,
+    screeningFee: cargoFees.screeningFeePerKg * totalWeight,
+    handlingFee: cargoFees.handlingFeePerKg * totalWeight,
+    cargoCharge: cargoFees.cargoChargePerKg * totalWeight,
   };
 };
 
-export const calculatePickupFee = (weight: number): number => {
-  if (!weight || weight <= 0) return 0;
+export const calculatePickupFee = (weight: number, settings?: AdminSettings | null): number => {
+  if (!settings || !weight || weight <= 0) return 0;
   
-  if (weight <= PICKUP_SERVICE.BASE_WEIGHT) {
-    return PICKUP_SERVICE.BASE_PRICE;
+  const { pickupService } = settings;
+  
+  if (weight <= pickupService.baseWeight) {
+    return pickupService.basePrice;
   }
   
-  return PICKUP_SERVICE.BASE_PRICE + 
-    (weight - PICKUP_SERVICE.BASE_WEIGHT) * PICKUP_SERVICE.ADDITIONAL_PRICE_PER_KG;
+  return pickupService.basePrice + 
+    (weight - pickupService.baseWeight) * pickupService.additionalPricePerKg;
+};
+
+export const getRoutePricing = (
+  from: string, 
+  to: string, 
+  cargoType: CargoType, 
+  settings?: AdminSettings | null
+): number => {
+  if (!settings || !settings.cargoRoutePrices) return 0;
+  
+  const route = settings.cargoRoutePrices.find(r => 
+    r.from === from && r.to === to
+  );
+  
+  if (!route) return 0;
+  return route.prices[cargoType] || 0;
 };

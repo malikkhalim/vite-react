@@ -1,26 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAdminStore } from '../../stores/adminStore';
 
 export function CargoFeeSettings() {
-  const { settings, updateSettings } = useAdminStore();
-  const [fees, setFees] = useState(settings?.cargoFees || {
+  const { settings, updateCargoFees, loadSettings, isLoading, error } = useAdminStore();
+  const [fees, setFees] = useState({
     awbFee: 25,
     screeningFeePerKg: 0.15,
     handlingFeePerKg: 0.25,
     cargoChargePerKg: 2.5,
   });
 
+  // Load settings if they aren't already loaded
+  useEffect(() => {
+    if (!settings && !isLoading) {
+      loadSettings();
+    }
+  }, [settings, isLoading, loadSettings]);
+
+  // Update local state when settings are loaded
+  useEffect(() => {
+    if (settings?.cargoFees) {
+      setFees(settings.cargoFees);
+    }
+  }, [settings]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateSettings({
-      ...settings!,
-      cargoFees: fees,
-    });
+    console.log('Submitting cargo fees:', fees);
+    await updateCargoFees(fees);
   };
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-6">Cargo Fees</h2>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid md:grid-cols-2 gap-4">
@@ -36,7 +54,7 @@ export function CargoFeeSettings() {
                 type="number"
                 value={fees.awbFee}
                 onChange={(e) =>
-                  setFees({ ...fees, awbFee: parseFloat(e.target.value) })
+                  setFees({ ...fees, awbFee: parseFloat(e.target.value) || 0 })
                 }
                 step="0.01"
                 min="0"
@@ -59,7 +77,7 @@ export function CargoFeeSettings() {
                 onChange={(e) =>
                   setFees({
                     ...fees,
-                    screeningFeePerKg: parseFloat(e.target.value),
+                    screeningFeePerKg: parseFloat(e.target.value) || 0,
                   })
                 }
                 step="0.01"
@@ -83,7 +101,7 @@ export function CargoFeeSettings() {
                 onChange={(e) =>
                   setFees({
                     ...fees,
-                    handlingFeePerKg: parseFloat(e.target.value),
+                    handlingFeePerKg: parseFloat(e.target.value) || 0,
                   })
                 }
                 step="0.01"
@@ -107,7 +125,7 @@ export function CargoFeeSettings() {
                 onChange={(e) =>
                   setFees({
                     ...fees,
-                    cargoChargePerKg: parseFloat(e.target.value),
+                    cargoChargePerKg: parseFloat(e.target.value) || 0,
                   })
                 }
                 step="0.01"
@@ -121,9 +139,10 @@ export function CargoFeeSettings() {
         <div className="flex justify-end">
           <button
             type="submit"
-            className="bg-sky-600 text-white px-4 py-2 rounded-md hover:bg-sky-700"
+            disabled={isLoading}
+            className="bg-sky-600 text-white px-4 py-2 rounded-md hover:bg-sky-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save Changes
+            {isLoading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </form>

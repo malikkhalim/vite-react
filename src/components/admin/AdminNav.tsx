@@ -1,9 +1,9 @@
 import React from 'react';
 import { LayoutDashboard, Settings, Users, LogOut } from 'lucide-react';
-import { useAuthStore } from '../../stores/authStore';
+import { useUserStore } from '../../stores/userStore';
 
 export function AdminNav() {
-  const { logout } = useAuthStore();
+  const { signOut } = useUserStore();
   
   return (
     <nav className="bg-sky-700 text-white">
@@ -29,7 +29,7 @@ export function AdminNav() {
           </div>
 
           <button
-            onClick={logout}
+            onClick={signOut}
             className="flex items-center gap-2 hover:text-sky-200"
           >
             <LogOut className="h-5 w-5" />

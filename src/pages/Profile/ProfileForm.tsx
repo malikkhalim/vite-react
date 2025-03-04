@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User } from 'lucide-react';
-import { useAuthStore } from '../../stores/authStore';
+import { useUserStore } from '../../stores/userStore';
 
 interface ProfileFormData {
   displayName: string;
@@ -10,12 +10,12 @@ interface ProfileFormData {
 }
 
 export function ProfileForm() {
-  const { user } = useAuthStore();
+  const { user } = useUserStore();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<ProfileFormData>({
-    displayName: user?.displayName || '',
+    displayName: user?.firstName || '',
     email: user?.email || '',
-    phoneNumber: user?.phoneNumber || '',
+    phoneNumber: user?.phone || '',
     address: ''
   });
 
@@ -33,7 +33,7 @@ export function ProfileForm() {
         </div>
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
-            {user?.displayName || 'Your Profile'}
+            {user?.firstName || 'Your Profile'}
           </h2>
           <p className="text-gray-600">{user?.email}</p>
         </div>

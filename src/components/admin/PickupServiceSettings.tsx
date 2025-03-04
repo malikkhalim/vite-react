@@ -1,20 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAdminStore } from '../../stores/adminStore';
 
 export function PickupServiceSettings() {
-  const { settings, updateSettings } = useAdminStore();
-  const [pickupService, setPickupService] = useState(settings?.pickupService || {
+  const { settings, updatePickupService, loadSettings, isLoading, error } = useAdminStore();
+  const [pickupService, setPickupService] = useState({
     baseWeight: 45,
     basePrice: 80,
     additionalPricePerKg: 2,
   });
 
+  // Load settings if they aren't already loaded
+  useEffect(() => {
+    if (!settings && !isLoading) {
+      loadSettings();
+    }
+  }, [settings, isLoading, loadSettings]);
+
+  // Update local state when settings are loaded
+  useEffect(() => {
+    if (settings?.pickupService) {
+      setPickupService(settings.pickupService);
+    }
+  }, [settings]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateSettings({
-      ...settings!,
-      pickupService,
-    });
+    console.log('Submitting pickup service settings:', pickupService);
+    await updatePickupService(pickupService);
   };
 
   return (
@@ -22,6 +34,12 @@ export function PickupServiceSettings() {
       <h2 className="text-lg font-semibold text-gray-900 mb-6">
         Pickup Service Settings
       </h2>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid md:grid-cols-3 gap-4">
@@ -35,7 +53,7 @@ export function PickupServiceSettings() {
               onChange={(e) =>
                 setPickupService({
                   ...pickupService,
-                  baseWeight: parseInt(e.target.value),
+                  baseWeight: parseInt(e.target.value) || 0,
                 })
               }
               min="0"
@@ -57,7 +75,7 @@ export function PickupServiceSettings() {
                 onChange={(e) =>
                   setPickupService({
                     ...pickupService,
-                    basePrice: parseFloat(e.target.value),
+                    basePrice: parseFloat(e.target.value) || 0,
                   })
                 }
                 step="0.01"
@@ -81,7 +99,7 @@ export function PickupServiceSettings() {
                 onChange={(e) =>
                   setPickupService({
                     ...pickupService,
-                    additionalPricePerKg: parseFloat(e.target.value),
+                    additionalPricePerKg: parseFloat(e.target.value) || 0,
                   })
                 }
                 step="0.01"
@@ -95,9 +113,10 @@ export function PickupServiceSettings() {
         <div className="flex justify-end">
           <button
             type="submit"
-            className="bg-sky-600 text-white px-4 py-2 rounded-md hover:bg-sky-700"
+            disabled={isLoading}
+            className="bg-sky-600 text-white px-4 py-2 rounded-md hover:bg-sky-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save Changes
+            {isLoading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </form>

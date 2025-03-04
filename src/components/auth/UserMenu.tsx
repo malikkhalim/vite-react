@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { User, LogOut } from 'lucide-react';
-import { useAuthStore } from '../../stores/authStore';
+import { useUserStore } from '../../stores/userStore';
+
 
 export function UserMenu() {
-  const { user, logout } = useAuthStore();
+  const { user, signOut } = useUserStore();
   const [isOpen, setIsOpen] = useState(false);
 
   if (!user) return null;
@@ -33,7 +34,7 @@ export function UserMenu() {
             My Bookings
           </a>
           <button
-            onClick={logout}
+            onClick={signOut}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
           >
             <LogOut className="h-4 w-4" />

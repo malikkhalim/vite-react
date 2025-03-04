@@ -9,6 +9,7 @@ interface UserState {
   loading: boolean;
   error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, metadata?: any) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   clearError: () => void;
@@ -23,7 +24,6 @@ export const useUserStore = create<UserState>()(
 
       signIn: async (email, password) => {
         if (get().loading) return;
-        
         set({ loading: true, error: null });
         try {
           const { profile } = await authService.signIn(email, password);
@@ -40,9 +40,35 @@ export const useUserStore = create<UserState>()(
         }
       },
 
+      signUp: async (email, password, metadata = {}) => {
+        if (get().loading) return;
+        set({ loading: true, error: null });
+        try {
+          // Register the user but don't automatically sign in
+          const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: metadata,
+              emailRedirectTo: `${window.location.origin}/auth/callback`
+            }
+          });
+          
+          if (error) throw new AuthError(error.message);
+          
+          // Don't automatically sign in - just return success
+          set({ loading: false });
+        } catch (error) {
+          set({ 
+            error: error instanceof AuthError ? error.message : 'Registration failed',
+            loading: false
+          });
+          throw error; // Re-throw to handle in component
+        }
+      },
+
       signInWithGoogle: async () => {
         if (get().loading) return;
-        
         set({ loading: true, error: null });
         try {
           await authService.signInWithGoogle();
@@ -57,7 +83,6 @@ export const useUserStore = create<UserState>()(
 
       signOut: async () => {
         if (get().loading) return;
-        
         set({ loading: true, error: null });
         try {
           await authService.signOut();

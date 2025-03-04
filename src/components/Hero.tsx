@@ -7,7 +7,6 @@ interface HeroProps {
 }
 
 export default function Hero({ onBookFlightClick, onBookCargoClick }: HeroProps) {
-  console.log(process.env.NODE_ENV);
   return (
     <div className="relative h-[600px] flex items-center">
       {/* Background Image Container */}

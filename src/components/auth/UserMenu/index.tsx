@@ -1,23 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User } from 'lucide-react';
-import { useAuthStore } from '../../../stores/authStore';
+import { useUserStore } from '../../../stores/userStore';
 import { UserMenuDropdown } from './UserMenuDropdown';
 
 interface UserMenuProps {
   onProfileClick: () => void;
   onBookingsClick: () => void;
+  onAdminClick?: () => void;
 }
 
-export function UserMenu({ onProfileClick, onBookingsClick }: UserMenuProps) {
-  const { user, logout } = useAuthStore();
+export function UserMenu({ onProfileClick, onBookingsClick, onAdminClick }: UserMenuProps) {
+  const { user, signOut } = useUserStore();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Access is_admin directly
+  const isAdmin = user?.is_admin === true;
+  
+  console.log("User:", user); // Debug log
+  console.log("Is admin:", isAdmin); // Debug log
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node) &&
-          buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -31,7 +38,7 @@ export function UserMenu({ onProfileClick, onBookingsClick }: UserMenuProps) {
   if (!user) return null;
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
@@ -40,7 +47,7 @@ export function UserMenu({ onProfileClick, onBookingsClick }: UserMenuProps) {
         aria-haspopup="true"
       >
         <User className="h-5 w-5" />
-        <span>{user.displayName || user.email || 'Account'}</span>
+        <span>{user.firstName || user.email || 'Account'}</span>
       </button>
 
       {isOpen && (
@@ -57,9 +64,11 @@ export function UserMenu({ onProfileClick, onBookingsClick }: UserMenuProps) {
           >
             <UserMenuDropdown 
               onClose={() => setIsOpen(false)}
-              onLogout={logout}
+              onLogout={signOut}
               onProfileClick={onProfileClick}
               onBookingsClick={onBookingsClick}
+              onAdminClick={onAdminClick}
+              isAdmin={isAdmin}
             />
           </div>
         </>

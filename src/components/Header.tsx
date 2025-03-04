@@ -1,20 +1,33 @@
 import React, { useState } from 'react';
-import { Plane, Package, Menu, X } from 'lucide-react';
+import { Plane, Package, Menu, X, Settings } from 'lucide-react';
 import { HomeButton } from './ui/HomeButton';
+import { UserMenu } from './auth/UserMenu/index';
 import { AuthControls } from './auth/AuthControls';
+import { useUserStore } from '../stores/userStore';
 
 interface HeaderProps {
   onHomeClick: () => void;
   onBookFlightClick: () => void;
   onBookCargoClick: () => void;
+  onProfileClick: () => void;
+  onBookingsClick: () => void;
+  onAdminClick?: () => void;
 }
 
 export default function Header({ 
   onHomeClick, 
   onBookFlightClick, 
   onBookCargoClick,
+  onProfileClick,
+  onBookingsClick,
+  onAdminClick
 }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user } = useUserStore();
+  const isAdmin = user?.is_admin === true; // Explicitly check for true
+  
+  console.log("Header - User:", user); // Debug log
+  console.log("Header - Is admin:", isAdmin); // Debug log
 
   const handleMenuItemClick = (handler: () => void) => {
     setIsMenuOpen(false);
@@ -31,7 +44,6 @@ export default function Header({
               <span className="text-xl font-bold">Timor Pacific Logistics</span>
             </button>
           </div>
-          
           <div className="hidden md:flex items-center space-x-6">
             <HomeButton onClick={onHomeClick} />
             <button 
@@ -48,7 +60,15 @@ export default function Header({
               <Package className="h-5 w-5" />
               Book Cargo
             </button>
-            <AuthControls />
+            {user ? (
+              <UserMenu 
+                onProfileClick={onProfileClick}
+                onBookingsClick={onBookingsClick}
+                onAdminClick={isAdmin ? onAdminClick : undefined}
+              />
+            ) : (
+              <AuthControls />
+            )}
           </div>
 
           <button 
@@ -78,9 +98,16 @@ export default function Header({
                 <Package className="h-5 w-5 shrink-0" />
                 <span>Book Cargo</span>
               </button>
-              <div className="pt-2 border-t border-sky-600">
-                <AuthControls />
-              </div>
+              {!user && <AuthControls />}
+              {isAdmin && onAdminClick && (
+                <button 
+                  onClick={() => handleMenuItemClick(onAdminClick)}
+                  className="hover:text-sky-200 flex items-center gap-2"
+                >
+                  <Settings className="h-5 w-5 shrink-0" />
+                  <span>Admin Dashboard</span>
+                </button>
+              )}
             </div>
           </div>
         )}

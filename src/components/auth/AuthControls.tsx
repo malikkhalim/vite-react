@@ -14,7 +14,6 @@ export function AuthControls() {
           <User className="h-5 w-5" />
           <span>{user.firstName || 'Account'}</span>
         </button>
-        
         <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block">
           <a href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
             Profile

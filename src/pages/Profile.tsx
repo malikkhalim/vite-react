@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Container } from '../components/layout/Container';
-import { useAuthStore } from '../stores/authStore';
+import { useUserStore } from '../stores/userStore';
 
 export default function Profile() {
-  const { user } = useAuthStore();
+  const { user } = useUserStore();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',

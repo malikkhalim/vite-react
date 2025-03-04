@@ -25,6 +25,11 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     onClose();
   };
 
+  const switchToLogin = () => {
+    setIsLogin(true);
+    clearError();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -54,7 +59,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
           </div>
         )}
 
-        {isLogin ? <LoginForm /> : <SignupForm />}
+        {isLogin ? <LoginForm /> : <SignupForm onSuccess={switchToLogin} />}
 
         <div className="mt-4 text-center">
           <button

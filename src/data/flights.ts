@@ -30,7 +30,9 @@ export const availableFlights: Flight[] = [
         'Lounge access',
         'Priority baggage handling'
       ]
-    }
+    },
+    searchKey: '',
+    classKey: ''
   },
   {
     id: 'FL002',
@@ -59,7 +61,9 @@ export const availableFlights: Flight[] = [
         'Extra legroom',
         'Priority baggage handling'
       ]
-    }
+    },
+    searchKey: '',
+    classKey: ''
   },
   {
     id: 'FL003',
@@ -92,6 +96,8 @@ export const availableFlights: Flight[] = [
         'Priority baggage handling',
         'Amenity kit'
       ]
-    }
+    },
+    searchKey: '',
+    classKey: ''
   }
 ];

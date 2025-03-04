@@ -7,6 +7,9 @@ interface MainLayoutProps {
   onHomeClick: () => void;
   onBookFlightClick: () => void;
   onBookCargoClick: () => void;
+  onProfileClick: () => void;
+  onBookingsClick: () => void;
+  onAdminClick?: () => void;
 }
 
 export function MainLayout({ 
@@ -14,6 +17,9 @@ export function MainLayout({
   onHomeClick, 
   onBookFlightClick, 
   onBookCargoClick,
+  onProfileClick,
+  onBookingsClick,
+  onAdminClick
 }: MainLayoutProps) {
   return (
     <div className="min-h-screen flex flex-col">
@@ -21,6 +27,9 @@ export function MainLayout({
         onHomeClick={onHomeClick}
         onBookFlightClick={onBookFlightClick}
         onBookCargoClick={onBookCargoClick}
+        onProfileClick={onProfileClick}
+        onBookingsClick={onBookingsClick}
+        onAdminClick={onAdminClick}
       />
       <main className="flex-grow">
         {children}

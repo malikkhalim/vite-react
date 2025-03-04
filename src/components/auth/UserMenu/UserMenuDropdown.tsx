@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Package, LogOut } from 'lucide-react';
+import { User, Package, LogOut, Settings } from 'lucide-react';
 import { UserMenuItem } from './UserMenuItem';
 
 interface UserMenuDropdownProps {
@@ -7,13 +7,17 @@ interface UserMenuDropdownProps {
   onLogout: () => void;
   onProfileClick: () => void;
   onBookingsClick: () => void;
+  onAdminClick?: () => void;
+  isAdmin?: boolean;
 }
 
 export function UserMenuDropdown({ 
   onClose, 
   onLogout,
   onProfileClick,
-  onBookingsClick
+  onBookingsClick,
+  onAdminClick,
+  isAdmin
 }: UserMenuDropdownProps) {
   const handleMenuItemClick = (action: () => void) => {
     // First close the menu
@@ -23,6 +27,8 @@ export function UserMenuDropdown({
       action();
     }, 100);
   };
+
+  console.log("Admin status:", isAdmin); // Debug log
 
   return (
     <div 
@@ -44,6 +50,14 @@ export function UserMenuDropdown({
         >
           My Bookings
         </UserMenuItem>
+        {isAdmin && onAdminClick && (
+          <UserMenuItem 
+            icon={Settings} 
+            onClick={() => handleMenuItemClick(onAdminClick)}
+          >
+            Admin Dashboard
+          </UserMenuItem>
+        )}
       </div>
       <div className="p-1">
         <UserMenuItem 
