@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { HITPAY_CONFIG } from '../../config/hitpay';
@@ -30,6 +29,16 @@ export function HitPayCheckout({
     setError(null);
     
     try {
+      // Check if we should use the direct form approach as a fallback
+      const useFallback = !HITPAY_CONFIG.API_KEY || 
+                         process.env.NODE_ENV === 'development';
+                         
+      if (useFallback) {
+        // Use the direct form approach instead
+        submitDirectForm();
+        return;
+      }
+      
       // Generate reference number if not provided
       const reference = referenceNumber || 
         `PAY-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
@@ -52,6 +61,8 @@ export function HitPayCheckout({
       if (name) requestData.name = name;
       if (email) requestData.email = email;
       if (phone) requestData.phone = phone;
+      
+      console.log('Sending payment request to:', `${origin}/api/hitpay/payment-requests`);
       
       // Make request to our Vercel API route (not directly to HitPay)
       const response = await fetch('/api/hitpay/payment-requests', {
@@ -92,9 +103,68 @@ export function HitPayCheckout({
       const errorMessage = err instanceof Error ? err.message : 'Failed to create payment';
       setError(errorMessage);
       onError?.(errorMessage);
+      
+      // Try the fallback method if API fails
+      if (confirm('Payment service error. Would you like to try an alternative payment method?')) {
+        submitDirectForm();
+      }
     } finally {
       setLoading(false);
     }
+  };
+  
+  // Fallback approach using direct form submission
+  const submitDirectForm = () => {
+    // Generate reference number if not provided
+    const reference = referenceNumber || 
+      `PAY-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+      
+    // Create a form element
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'https://securecheckout.sandbox.hit-pay.com/payment-request';
+    form.style.display = 'none';
+    
+    // Add form fields
+    const origin = window.location.origin;
+    const formFields = {
+      'api_key': HITPAY_CONFIG.API_KEY,
+      'amount': amount.toFixed(2),
+      'currency': HITPAY_CONFIG.CURRENCY,
+      'reference_number': reference,
+      'redirect_url': `${origin}${HITPAY_CONFIG.SUCCESS_URL}`,
+      'webhook': `${origin}${HITPAY_CONFIG.WEBHOOK_PATH}`,
+      'cancel_url': `${origin}${HITPAY_CONFIG.CANCEL_URL}`
+    };
+    
+    // Add optional fields
+    if (name) formFields['name'] = name;
+    if (email) formFields['email'] = email;
+    if (phone) formFields['phone'] = phone;
+    
+    // Create form inputs
+    Object.entries(formFields).forEach(([key, value]) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = value;
+      form.appendChild(input);
+    });
+    
+    // Track the payment in localStorage
+    localStorage.setItem(`hitpay_payment_${reference}`, JSON.stringify({
+      reference,
+      amount,
+      timestamp: Date.now(),
+      status: 'pending'
+    }));
+    
+    // Submit the form
+    document.body.appendChild(form);
+    form.submit();
+    
+    // Optional callback
+    onSuccess?.();
   };
 
   return (
