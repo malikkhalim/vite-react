@@ -1,6 +1,6 @@
+
 import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { createPayment, mockCreatePayment } from '../../services/hitpay/api-client';
 import { HITPAY_CONFIG } from '../../config/hitpay';
 
 interface HitPayCheckoutProps {
@@ -30,38 +30,63 @@ export function HitPayCheckout({
     setError(null);
     
     try {
-      // Use mock in development if configured
-      const useMock = HITPAY_CONFIG.DEV_MOCK && process.env.NODE_ENV === 'development';
+      // Generate reference number if not provided
+      const reference = referenceNumber || 
+        `PAY-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
       
-      // Create the payment request (real or mock)
-      const paymentFunction = useMock ? mockCreatePayment : createPayment;
-      const response = await paymentFunction({
-        amount,
-        email,
-        name,
-        phone,
-        reference_number: referenceNumber,
-        payment_methods: ['card', 'paynow_online']
+      // Prepare request data
+      const origin = window.location.origin;
+      const requestData = {
+        amount: amount.toFixed(2),
+        currency: HITPAY_CONFIG.CURRENCY,
+        reference_number: reference,
+        redirect_url: `${origin}${HITPAY_CONFIG.SUCCESS_URL}`,
+        webhook: `${origin}${HITPAY_CONFIG.WEBHOOK_PATH}`,
+        cancel_url: `${origin}${HITPAY_CONFIG.CANCEL_URL}`,
+        payment_methods: ['card', 'paynow_online'],
+        // Include API key in the body for the Vercel API route
+        apiKey: HITPAY_CONFIG.API_KEY
+      };
+      
+      // Add optional fields if they exist
+      if (name) requestData.name = name;
+      if (email) requestData.email = email;
+      if (phone) requestData.phone = phone;
+      
+      // Make request to our Vercel API route (not directly to HitPay)
+      const response = await fetch('/api/hitpay/payment-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
       });
       
-      // Store payment tracking info
-      localStorage.setItem(`hitpay_payment_${response.id}`, JSON.stringify({
-        id: response.id,
-        reference: response.reference_number,
+      // Parse the response
+      const data = await response.json();
+      
+      // Check for errors
+      if (!response.ok) {
+        throw new Error(data.error || data.message || `API error: ${response.status}`);
+      }
+      
+      // Store payment info in localStorage for tracking
+      localStorage.setItem(`hitpay_payment_${data.id || reference}`, JSON.stringify({
+        id: data.id,
+        reference: data.reference_number || reference,
         amount,
         timestamp: Date.now(),
         status: 'pending'
       }));
       
-      // Redirect to the checkout URL
-      if (response.url) {
-        console.log('Redirecting to HitPay checkout:', response.url);
-        window.location.href = response.url;
+      // Redirect to the HitPay checkout URL
+      if (data.url) {
+        console.log('Redirecting to HitPay checkout:', data.url);
+        window.location.href = data.url;
         onSuccess?.();
       } else {
-        throw new Error('Invalid payment URL received');
+        throw new Error('No payment URL received from HitPay');
       }
-      
     } catch (err) {
       console.error('Payment creation error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to create payment';
@@ -94,12 +119,6 @@ export function HitPayCheckout({
           'Pay Now'
         )}
       </button>
-      
-      {HITPAY_CONFIG.DEV_MOCK && process.env.NODE_ENV === 'development' && (
-        <div className="mt-2 text-xs text-center text-gray-500">
-          Using mock in development mode
-        </div>
-      )}
     </div>
   );
 }
