@@ -90,11 +90,14 @@ export default function App() {
 
     // Check for payment routes in URL path
     const path = window.location.pathname;
-    if (path.startsWith('/payment/success')) {
+
+    console.log('Current path:', path);
+
+    if (path.includes('/payment/success')) {
       return <PaymentSuccess />;
-    } else if (path.startsWith('/payment/cancel')) {
+    } else if (path.includes('/payment/cancel')) {
       return <PaymentCancel />;
-    } else if (path.startsWith('/payment/failed')) {
+    } else if (path.includes('/payment/failed')) {
       return <PaymentFailed />;
     }
 

@@ -1,20 +1,36 @@
 {
     "version": 2,
     "rewrites": [
-      { "source": "/payment/success", "destination": "/index.html" },
-      { "source": "/payment/cancel", "destination": "/index.html" },
-      { "source": "/payment/failed", "destination": "/index.html" }
+        {
+            "source": "/payment/success",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/payment/cancel",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/payment/failed",
+            "destination": "/index.html"
+        }
     ],
     "functions": {
-      "api/hitpay/payment-requests.js": {
-        "memory": 128,
-        "maxDuration": 10
-      }
+        "api/hitpay/payment-requests.js": {
+            "memory": 128,
+            "maxDuration": 10
+        }
     },
     "routes": [
-      {
-        "src": "/api/hitpay/payment-requests",
-        "dest": "/api/hitpay/payment-requests.js"
-      }
+        {
+            "src": "/api/hitpay/payment-requests",
+            "dest": "/api/hitpay/payment-requests.js"
+        },
+        {
+            "handle": "filesystem"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/index.html"
+        }
     ]
-  }
+}
