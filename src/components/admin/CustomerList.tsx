@@ -8,7 +8,7 @@ export function CustomerList() {
   const [customers, setCustomers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAllUsers, setShowAllUsers] = useState(false); // New state to toggle between all users and non-admin only
+  const [showAllUsers, setShowAllUsers] = useState(false);
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -18,14 +18,15 @@ export function CustomerList() {
       try {
         console.log("Fetching customers...");
         
-        // Fetch users based on the current filter setting
-        const query = supabase
+        // Correctly build and execute the Supabase query
+        let query = supabase
           .from('profiles')
           .select('*');
           
         // Only apply the admin filter if we're not showing all users
         if (!showAllUsers) {
-          query.filter('is_admin', 'not.eq', true);
+          
+          query = query.neq('is_admin', true);
         }
         
         const { data: profiles, error: profilesError } = await query;
@@ -65,6 +66,7 @@ export function CustomerList() {
 
   return (
     <div className="bg-white rounded-lg shadow-md">
+      {/* Rest of your component remains the same */}
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="relative flex-1 mr-4">

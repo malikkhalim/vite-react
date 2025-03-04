@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useUserStore } from '../stores/userStore';
 
-// Enhanced page type to include admin subpages
+// page type to include admin subpages
 export type PageType = 'home' | 'flight' | 'cargo' | 'profile' | 'bookings' | 
   'admin' | 'admin-dashboard' | 'admin-settings' | 'admin-customers';
 

@@ -32,7 +32,7 @@ export const useUserStore = create<UserState>()(
           }
           set({ user: profile, loading: false });
         } catch (error) {
-          set({ 
+          set({
             error: error instanceof AuthError ? error.message : 'Sign in failed',
             loading: false,
             user: null
@@ -53,13 +53,13 @@ export const useUserStore = create<UserState>()(
               emailRedirectTo: `${window.location.origin}/auth/callback`
             }
           });
-          
+
           if (error) throw new AuthError(error.message);
-          
+
           // Don't automatically sign in - just return success
           set({ loading: false });
         } catch (error) {
-          set({ 
+          set({
             error: error instanceof AuthError ? error.message : 'Registration failed',
             loading: false
           });
@@ -74,7 +74,7 @@ export const useUserStore = create<UserState>()(
           await authService.signInWithGoogle();
           // Profile will be set by auth state listener after redirect
         } catch (error) {
-          set({ 
+          set({
             error: error instanceof AuthError ? error.message : 'Google sign in failed',
             loading: false
           });
@@ -85,16 +85,22 @@ export const useUserStore = create<UserState>()(
         if (get().loading) return;
         set({ loading: true, error: null });
         try {
+          set({ user: null });
+          localStorage.removeItem('user-storage');
           await authService.signOut();
-          set({ user: null, loading: false });
+
+          set({ loading: false });
+
+          // Force page reload if  still have issues
+          // window.location.href = '/';
         } catch (error) {
-          set({ 
+          set({
             error: error instanceof AuthError ? error.message : 'Sign out failed',
-            loading: false 
+            loading: false
           });
+          console.error('Sign out error:', error);
         }
       },
-
       clearError: () => set({ error: null })
     }),
     {

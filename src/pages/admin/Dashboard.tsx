@@ -7,7 +7,6 @@ import { RecentBookings } from '../../components/admin/RecentBookings';
 export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminNav />
       <Container className="py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Dashboard</h1>
         

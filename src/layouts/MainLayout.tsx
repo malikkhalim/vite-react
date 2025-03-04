@@ -10,26 +10,34 @@ interface MainLayoutProps {
   onProfileClick: () => void;
   onBookingsClick: () => void;
   onAdminClick?: () => void;
+  onAdminSettingsClick?: () => void;
+  onAdminCustomersClick?: () => void;
+  isAdmin?: boolean;
 }
 
-export function MainLayout({ 
-  children, 
-  onHomeClick, 
-  onBookFlightClick, 
+export function MainLayout({
+  children,
+  onHomeClick,
+  onBookFlightClick,
   onBookCargoClick,
   onProfileClick,
   onBookingsClick,
-  onAdminClick
+  onAdminClick,
+  onAdminSettingsClick,
+  onAdminCustomersClick,
+  isAdmin
 }: MainLayoutProps) {
   return (
     <div className="min-h-screen flex flex-col">
-      <Header 
+      <Header
         onHomeClick={onHomeClick}
         onBookFlightClick={onBookFlightClick}
         onBookCargoClick={onBookCargoClick}
         onProfileClick={onProfileClick}
         onBookingsClick={onBookingsClick}
         onAdminClick={onAdminClick}
+        onAdminSettingsClick={onAdminSettingsClick}
+        onAdminCustomersClick={onAdminCustomersClick}
       />
       <main className="flex-grow">
         {children}

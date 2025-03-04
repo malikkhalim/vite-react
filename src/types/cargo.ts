@@ -1,6 +1,7 @@
 export type CargoType = 'general' | 'pharma' | 'perishable' | 'dangerous' | 'special';
 export type PackageType = 'box' | 'pallet' | 'container' | 'crate' | 'drum' | 'bag';
 export type PaymentMethod = 'credit_card' | 'company_account';
+export type CurrencyType = 'SGD' | 'USD';
 
 export interface CargoSearchData {
   from: string;
@@ -25,8 +26,8 @@ export interface CargoDetails extends CargoSearchData {
   packages: PackageDetails[];
   specialInstructions?: string;
   dangerous: boolean;
-  totalWeight: number;
-  totalVolume: number;
+  totalWeight?: number;
+  totalVolume?: number;
 }
 
 export interface ContactDetails {
@@ -62,7 +63,9 @@ export interface CargoSummary {
   };
   fees: CargoFees;
   pickup?: PickupDetails;
+  routeFee?: number;
   totalAmount: number;
+  currency?: CurrencyType; 
 }
 
 export interface PaymentDetails {

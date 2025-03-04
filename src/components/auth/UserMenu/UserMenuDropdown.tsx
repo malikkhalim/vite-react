@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Package, LogOut, Settings } from 'lucide-react';
+import { User, Package, LogOut, Settings, Sliders, Users } from 'lucide-react';
 import { UserMenuItem } from './UserMenuItem';
 
 interface UserMenuDropdownProps {
@@ -8,6 +8,8 @@ interface UserMenuDropdownProps {
   onProfileClick: () => void;
   onBookingsClick: () => void;
   onAdminClick?: () => void;
+  onAdminSettingsClick?: () => void;  // Added this prop
+  onAdminCustomersClick?: () => void; // Added this prop
   isAdmin?: boolean;
 }
 
@@ -17,6 +19,8 @@ export function UserMenuDropdown({
   onProfileClick,
   onBookingsClick,
   onAdminClick,
+  onAdminSettingsClick,   // Added this prop
+  onAdminCustomersClick,  // Added this prop
   isAdmin
 }: UserMenuDropdownProps) {
   const handleMenuItemClick = (action: () => void) => {
@@ -50,13 +54,33 @@ export function UserMenuDropdown({
         >
           My Bookings
         </UserMenuItem>
-        {isAdmin && onAdminClick && (
-          <UserMenuItem 
-            icon={Settings} 
-            onClick={() => handleMenuItemClick(onAdminClick)}
-          >
-            Admin Dashboard
-          </UserMenuItem>
+        {isAdmin && (
+          <>
+            {onAdminClick && (
+              <UserMenuItem 
+                icon={Settings} 
+                onClick={() => handleMenuItemClick(onAdminClick)}
+              >
+                Admin Dashboard
+              </UserMenuItem>
+            )}
+            {onAdminSettingsClick && (
+              <UserMenuItem 
+                icon={Sliders} 
+                onClick={() => handleMenuItemClick(onAdminSettingsClick)}
+              >
+                Admin Settings
+              </UserMenuItem>
+            )}
+            {onAdminCustomersClick && (
+              <UserMenuItem 
+                icon={Users} 
+                onClick={() => handleMenuItemClick(onAdminCustomersClick)}
+              >
+                Admin Customers
+              </UserMenuItem>
+            )}
+          </>
         )}
       </div>
       <div className="p-1">

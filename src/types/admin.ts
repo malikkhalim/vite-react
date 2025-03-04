@@ -8,6 +8,7 @@ export interface CargoRoutePrice {
     dangerous: number;
     special: number;
   };
+  currency?: 'SGD' | 'USD';
 }
 
 export interface AdminSettings {

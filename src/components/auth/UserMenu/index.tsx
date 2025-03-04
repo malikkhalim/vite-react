@@ -7,9 +7,17 @@ interface UserMenuProps {
   onProfileClick: () => void;
   onBookingsClick: () => void;
   onAdminClick?: () => void;
+  onAdminSettingsClick?: () => void;  // Added this prop
+  onAdminCustomersClick?: () => void; // Added this prop
 }
 
-export function UserMenu({ onProfileClick, onBookingsClick, onAdminClick }: UserMenuProps) {
+export function UserMenu({ 
+  onProfileClick, 
+  onBookingsClick, 
+  onAdminClick,
+  onAdminSettingsClick,   // Added this prop
+  onAdminCustomersClick   // Added this prop
+}: UserMenuProps) {
   const { user, signOut } = useUserStore();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -68,6 +76,8 @@ export function UserMenu({ onProfileClick, onBookingsClick, onAdminClick }: User
               onProfileClick={onProfileClick}
               onBookingsClick={onBookingsClick}
               onAdminClick={onAdminClick}
+              onAdminSettingsClick={onAdminSettingsClick}
+              onAdminCustomersClick={onAdminCustomersClick}
               isAdmin={isAdmin}
             />
           </div>

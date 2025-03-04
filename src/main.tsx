@@ -1,10 +1,14 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import { setupStorageFixing } from './utils/cacheFix';
 import './index.css';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+// Setup storage fixing - run before app initialization
+setupStorageFixing();
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
     <App />
-  </StrictMode>
+  </React.StrictMode>
 );

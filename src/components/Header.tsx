@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plane, Package, Menu, X, Settings } from 'lucide-react';
+import { Plane, Package, Menu, X, Settings, Users, Sliders } from 'lucide-react';
 import { HomeButton } from './ui/HomeButton';
 import { UserMenu } from './auth/UserMenu/index';
 import { AuthControls } from './auth/AuthControls';
@@ -12,6 +12,8 @@ interface HeaderProps {
   onProfileClick: () => void;
   onBookingsClick: () => void;
   onAdminClick?: () => void;
+  onAdminSettingsClick?: () => void;  // Added this prop
+  onAdminCustomersClick?: () => void; // Added this prop
 }
 
 export default function Header({ 
@@ -20,7 +22,9 @@ export default function Header({
   onBookCargoClick,
   onProfileClick,
   onBookingsClick,
-  onAdminClick
+  onAdminClick,
+  onAdminSettingsClick,   // Added this prop
+  onAdminCustomersClick   // Added this prop
 }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user } = useUserStore();
@@ -65,6 +69,8 @@ export default function Header({
                 onProfileClick={onProfileClick}
                 onBookingsClick={onBookingsClick}
                 onAdminClick={isAdmin ? onAdminClick : undefined}
+                onAdminSettingsClick={isAdmin ? onAdminSettingsClick : undefined}
+                onAdminCustomersClick={isAdmin ? onAdminCustomersClick : undefined}
               />
             ) : (
               <AuthControls />
@@ -99,14 +105,36 @@ export default function Header({
                 <span>Book Cargo</span>
               </button>
               {!user && <AuthControls />}
-              {isAdmin && onAdminClick && (
-                <button 
-                  onClick={() => handleMenuItemClick(onAdminClick)}
-                  className="hover:text-sky-200 flex items-center gap-2"
-                >
-                  <Settings className="h-5 w-5 shrink-0" />
-                  <span>Admin Dashboard</span>
-                </button>
+              {isAdmin && (
+                <>
+                  {onAdminClick && (
+                    <button 
+                      onClick={() => handleMenuItemClick(onAdminClick)}
+                      className="hover:text-sky-200 flex items-center gap-2"
+                    >
+                      <Settings className="h-5 w-5 shrink-0" />
+                      <span>Admin Dashboard</span>
+                    </button>
+                  )}
+                  {onAdminSettingsClick && (
+                    <button 
+                      onClick={() => handleMenuItemClick(onAdminSettingsClick)}
+                      className="hover:text-sky-200 flex items-center gap-2"
+                    >
+                      <Sliders className="h-5 w-5 shrink-0" />
+                      <span>Admin Settings</span>
+                    </button>
+                  )}
+                  {onAdminCustomersClick && (
+                    <button 
+                      onClick={() => handleMenuItemClick(onAdminCustomersClick)}
+                      className="hover:text-sky-200 flex items-center gap-2"
+                    >
+                      <Users className="h-5 w-5 shrink-0" />
+                      <span>Admin Customers</span>
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Check, Loader2, AlertCircle } from 'lucide-react';
-import { PaymentAPI } from '../../services/hitpay/api/payment';
 import { Container } from '../../components/layout/Container';
 
 export default function PaymentSuccess() {
@@ -9,18 +8,50 @@ export default function PaymentSuccess() {
   const navigate = useNavigate();
   const [verifying, setVerifying] = useState(true);
   const [verified, setVerified] = useState(false);
+  const [paymentData, setPaymentData] = useState<any>(null);
 
   useEffect(() => {
-    const paymentId = searchParams.get('reference');
-    if (!paymentId) {
+    // Get payment data from the URL
+    const status = searchParams.get('status');
+    const reference = searchParams.get('reference');
+    const paymentId = searchParams.get('id');
+    
+    if (!reference && !paymentId) {
       navigate('/');
       return;
     }
 
     const verifyPayment = async () => {
       try {
-        const status = await PaymentAPI.getPaymentStatus(paymentId);
-        setVerified(status.status === 'completed');
+        // For HitPay, status is returned in the URL
+        if (status === 'completed') {
+          setVerified(true);
+          setPaymentData({
+            reference,
+            id: paymentId
+          });
+          
+          // Store successful payment in localStorage to communicate between tabs
+          localStorage.setItem('hitpay_payment_success', JSON.stringify({
+            reference,
+            id: paymentId,
+            timestamp: Date.now()
+          }));
+        } else {
+          // If status is not in URL, check localStorage (for mock sandbox)
+          const storedData = localStorage.getItem('hitpay_payment_success');
+          if (storedData) {
+            const parsedData = JSON.parse(storedData);
+            if (parsedData.reference === reference || parsedData.id === paymentId) {
+              setVerified(true);
+              setPaymentData(parsedData);
+            } else {
+              setVerified(false);
+            }
+          } else {
+            setVerified(false);
+          }
+        }
       } catch (error) {
         console.error('Payment verification failed:', error);
         setVerified(false);
@@ -29,7 +60,8 @@ export default function PaymentSuccess() {
       }
     };
 
-    verifyPayment();
+    // Add slight delay to simulate verification process
+    setTimeout(verifyPayment, 1000);
   }, [searchParams, navigate]);
 
   return (
@@ -50,15 +82,20 @@ export default function PaymentSuccess() {
             <p className="text-gray-600 mb-6">
               Your payment has been processed successfully. You will receive a confirmation email shortly.
             </p>
+            {paymentData && paymentData.reference && (
+              <p className="text-sm font-mono bg-gray-100 p-2 rounded mb-6">
+                Reference: {paymentData.reference}
+              </p>
+            )}
           </>
         ) : (
           <>
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertCircle className="h-8 w-8 text-red-600" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Payment Failed</h2>
+            <h2 className="text-2xl font-bold mb-2">Payment Verification Failed</h2>
             <p className="text-gray-600 mb-6">
-              We couldn't verify your payment. Please try again or contact support if the problem persists.
+              We couldn't verify your payment. Please contact customer support if you believe this is an error.
             </p>
           </>
         )}

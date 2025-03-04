@@ -13,7 +13,7 @@ export const settingsService = {
       const { data, error } = await supabase
         .from('admin_settings')
         .select('*')
-        .single();
+        .maybeSingle();
       
       if (error) {
         console.error('Error fetching settings:', error);
@@ -21,6 +21,7 @@ export const settingsService = {
       }
       
       if (!data) {
+        console.log('No settings found in database');
         return { data: null, error: 'No settings found' };
       }
       
@@ -47,19 +48,26 @@ export const settingsService = {
       console.log("Updating cargo fees:", cargoFees);
       
       // First get the current settings
-      const { data: currentSettings } = await this.getSettings();
+      const { data: currentSettings, error: fetchError } = await this.getSettings();
+      
+      if (fetchError) {
+        console.error('Error fetching current settings:', fetchError);
+        return { data: null, error: fetchError };
+      }
       
       if (!currentSettings) {
+        console.error('No settings found to update');
         return { data: null, error: 'No settings found to update' };
       }
       
       // Update only the cargo fees portion
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('admin_settings')
         .update({
           cargo_fees: cargoFees
         })
-        .eq('id', 1);
+        .eq('id', 1)
+        .select();
       
       if (error) {
         console.error('Error updating cargo fees:', error);
@@ -88,19 +96,26 @@ export const settingsService = {
       console.log("Updating pickup service:", pickupService);
       
       // First get the current settings
-      const { data: currentSettings } = await this.getSettings();
+      const { data: currentSettings, error: fetchError } = await this.getSettings();
+      
+      if (fetchError) {
+        console.error('Error fetching current settings:', fetchError);
+        return { data: null, error: fetchError };
+      }
       
       if (!currentSettings) {
+        console.error('No settings found to update');
         return { data: null, error: 'No settings found to update' };
       }
       
       // Update only the pickup service portion
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('admin_settings')
         .update({
           pickup_service: pickupService
         })
-        .eq('id', 1);
+        .eq('id', 1)
+        .select();
       
       if (error) {
         console.error('Error updating pickup service:', error);
@@ -129,19 +144,26 @@ export const settingsService = {
       console.log("Updating cargo routes:", cargoRoutePrices);
       
       // First get the current settings
-      const { data: currentSettings } = await this.getSettings();
+      const { data: currentSettings, error: fetchError } = await this.getSettings();
+      
+      if (fetchError) {
+        console.error('Error fetching current settings:', fetchError);
+        return { data: null, error: fetchError };
+      }
       
       if (!currentSettings) {
+        console.error('No settings found to update');
         return { data: null, error: 'No settings found to update' };
       }
       
       // Update only the cargo route prices portion
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('admin_settings')
         .update({
           cargo_route_prices: cargoRoutePrices
         })
-        .eq('id', 1);
+        .eq('id', 1)
+        .select();
       
       if (error) {
         console.error('Error updating cargo routes:', error);
@@ -169,13 +191,6 @@ export const settingsService = {
     try {
       console.log("Initializing settings");
       
-      // Check if settings already exist
-      const { data: existingSettings } = await this.getSettings();
-      
-      if (existingSettings) {
-        return { data: existingSettings, error: null };
-      }
-      
       // Create default settings
       const defaultSettings: AdminSettings = {
         cargoFees: {
@@ -192,18 +207,47 @@ export const settingsService = {
         cargoRoutePrices: []
       };
       
-      const { error } = await supabase
+      // Check if settings exist first
+      const { count, error: countError } = await supabase
         .from('admin_settings')
-        .insert({
-          id: 1,
-          cargo_fees: defaultSettings.cargoFees,
-          pickup_service: defaultSettings.pickupService,
-          cargo_route_prices: defaultSettings.cargoRoutePrices
-        });
+        .select('*', { count: 'exact', head: true });
       
-      if (error) {
-        console.error('Error initializing settings:', error);
-        return { data: null, error: error.message };
+      if (countError) {
+        console.error('Error checking for existing settings:', countError);
+        return { data: null, error: countError.message };
+      }
+      
+      let result;
+      
+      // If settings don't exist, insert them
+      if (count === 0) {
+        console.log("No settings found, creating new settings record");
+        result = await supabase
+          .from('admin_settings')
+          .insert({
+            id: 1,
+            cargo_fees: defaultSettings.cargoFees,
+            pickup_service: defaultSettings.pickupService,
+            cargo_route_prices: defaultSettings.cargoRoutePrices
+          })
+          .select();
+      } else {
+        // Otherwise, update the existing record
+        console.log("Settings record exists, updating with default values");
+        result = await supabase
+          .from('admin_settings')
+          .update({
+            cargo_fees: defaultSettings.cargoFees,
+            pickup_service: defaultSettings.pickupService,
+            cargo_route_prices: defaultSettings.cargoRoutePrices
+          })
+          .eq('id', 1)
+          .select();
+      }
+      
+      if (result.error) {
+        console.error('Error initializing settings:', result.error);
+        return { data: null, error: result.error.message };
       }
       
       console.log("Settings initialized successfully:", defaultSettings);

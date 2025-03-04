@@ -4,7 +4,8 @@ import { AdminSettings } from '../../types/admin';
 export const calculateVolume = (dimensions: { length: number; width: number; height: number }): number => {
   const { length, width, height } = dimensions;
   if (!length || !width || !height) return 0;
-  return (length * width * height) / 1000000; // Convert to m³
+  
+  return (width * height * length) / 60001;
 };
 
 export const calculateTotalWeight = (packages: PackageDetails[]): number => {
@@ -68,4 +69,9 @@ export const getRoutePricing = (
   
   if (!route) return 0;
   return route.prices[cargoType] || 0;
+};
+
+// Determine the currency based on origin airport
+export const getCurrency = (fromAirport: string): 'SGD' | 'USD' => {
+  return fromAirport === 'SIN' ? 'SGD' : 'USD';
 };
