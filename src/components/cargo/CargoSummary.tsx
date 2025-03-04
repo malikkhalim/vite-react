@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { Package, Truck } from 'lucide-react';
+
+import React, { useState, useEffect } from 'react';
+// import { Package, Truck } from 'lucide-react';
 import { AddressLookup } from './AddressLookup';
 import { CargoSummaryDetails } from './CargoSummaryDetails';
 import { CargoAddOns } from './CargoAddOns';
 import { ContactSummary } from './ContactSummary';
+import { useCargoCalculations } from '../../hooks/useCargoCalculations';
 import type { CargoDetails, ContactDetails, CargoSummary as CargoSummaryType } from '../../types/cargo';
-import { useCargoFees } from '../../hooks/useCargoFees';
-import { calculateTotalWeight, calculateTotalVolume, getRoutePricing } from '../../utils/cargo/calculations';
 
 interface CargoSummaryProps {
   cargoDetails: CargoDetails;
@@ -22,7 +22,16 @@ export function CargoSummary({ cargoDetails, contactDetails, onContinue }: Cargo
   const [pickupContact, setPickupContact] = useState<{ name: string; phone: string } | null>(null);
   const [needsPickup, setNeedsPickup] = useState(false);
 
-  const { calculateCargoFees, calculatePickupFee, settings, isLoading } = useCargoFees();
+  const {
+    calculateTotalWeight,
+    calculateTotalVolume,
+    calculateCargoFees,
+    calculatePickupFee,
+    getRoutePricing,
+    settings,
+    isLoading,
+    error
+  } = useCargoCalculations();
   
   // Calculate weights and volumes
   const totalWeight = calculateTotalWeight(cargoDetails.packages);
@@ -34,7 +43,7 @@ export function CargoSummary({ cargoDetails, contactDetails, onContinue }: Cargo
   
   // Calculate any route-based pricing
   const routeFee = settings ? 
-    getRoutePricing(cargoDetails.from, cargoDetails.to, cargoDetails.cargoType, settings) : 0;
+    getRoutePricing(cargoDetails.from, cargoDetails.to, cargoDetails.cargoType) : 0;
   
   // Calculate total amount
   const baseTotalAmount = Object.values(cargoFees).reduce((a, b) => a + b, 0);
@@ -83,6 +92,19 @@ export function CargoSummary({ cargoDetails, contactDetails, onContinue }: Cargo
     );
   }
 
+  // Show error state if there was a problem loading settings
+  if (error) {
+    return (
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
+          <strong className="font-bold">Error loading settings: </strong>
+          <span className="block sm:inline">{error}</span>
+          <p className="mt-2">Using default values for calculations.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="bg-white p-6 rounded-lg shadow-md space-y-8">
@@ -94,6 +116,7 @@ export function CargoSummary({ cargoDetails, contactDetails, onContinue }: Cargo
             totalVolume
           }}
           fees={cargoFees}
+          settings={settings}
         />
 
         {/* Contact Details Summary */}

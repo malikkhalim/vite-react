@@ -1,6 +1,7 @@
 import React from 'react';
 import { Package } from 'lucide-react';
 import type { CargoDetails, CargoFees } from '../../types/cargo';
+import type { AdminSettings } from '../../types/admin';
 import { formatWeight, formatVolume, formatCurrency } from '../../utils/cargo/formatting';
 import { useCargoFees } from '../../hooks/useCargoFees';
 import { getRoutePricing } from '../../utils/cargo/calculations';
@@ -8,7 +9,9 @@ import { getRoutePricing } from '../../utils/cargo/calculations';
 interface CargoSummaryDetailsProps {
   cargoDetails: CargoDetails;
   fees: CargoFees;
+  settings: AdminSettings | null;
 }
+
 
 export function CargoSummaryDetails({ cargoDetails, fees }: CargoSummaryDetailsProps) {
   const { settings, isLoading } = useCargoFees();

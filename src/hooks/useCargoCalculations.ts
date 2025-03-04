@@ -1,20 +1,47 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAdminStore } from '../stores/adminStore';
 import { CargoType, PackageDetails, CargoFees } from '../types/cargo';
 
-export function useCargoFees() {
-  const { settings, loadSettings, isLoading } = useAdminStore();
+export function useCargoCalculations() {
+  const { settings, loadSettings, isLoading, error } = useAdminStore();
+  const [localLoading, setLocalLoading] = useState(false);
 
   useEffect(() => {
-    if (!settings && !isLoading) {
-      loadSettings();
-    }
+    const initSettings = async () => {
+      if (!settings && !isLoading) {
+        setLocalLoading(true);
+        await loadSettings();
+        setLocalLoading(false);
+      }
+    };
+    
+    initSettings();
   }, [settings, isLoading, loadSettings]);
+
+  const calculateVolume = (dimensions: { length: number; width: number; height: number }): number => {
+    const { length, width, height } = dimensions;
+    if (!length || !width || !height) return 0;
+    return (length * width * height) / 1000000; // Convert to m³
+  };
+
+  const calculateTotalWeight = (packages: PackageDetails[]): number => {
+    return packages.reduce((total, pkg) => {
+      if (!pkg.weight || !pkg.quantity) return total;
+      return total + (pkg.weight * pkg.quantity);
+    }, 0);
+  };
+
+  const calculateTotalVolume = (packages: PackageDetails[]): number => {
+    return packages.reduce((total, pkg) => {
+      if (!pkg.dimensions || !pkg.quantity) return total;
+      return total + (calculateVolume(pkg.dimensions) * pkg.quantity);
+    }, 0);
+  };
 
   const calculateCargoFees = (totalWeight: number): CargoFees => {
     if (!settings || !totalWeight || totalWeight <= 0) {
       return {
-        awbFee: 25,
+        awbFee: 25, // Default AWB fee if settings not loaded
         screeningFee: 0,
         handlingFee: 0,
         cargoCharge: 0
@@ -57,10 +84,14 @@ export function useCargoFees() {
   };
 
   return {
+    calculateVolume,
+    calculateTotalWeight,
+    calculateTotalVolume,
     calculateCargoFees,
     calculatePickupFee,
     getRoutePricing,
-    isLoading,
-    settings
+    settings,
+    isLoading: isLoading || localLoading,
+    error
   };
 }
