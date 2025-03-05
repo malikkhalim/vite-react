@@ -1,3 +1,5 @@
+// src/services/aerodili/client/soap-client.ts
+
 export class SoapClient {
   static async execute(action: string, params: Record<string, any>) {
     try {
@@ -37,6 +39,20 @@ export class SoapClient {
         };
       }
 
+      // Special handling for WsRouteOperate response
+      if (action === 'WsRouteOperate' && result.data) {
+        // Transform the RouteOperates array to a proper array if it's not already
+        if (result.data.RouteOperates && !Array.isArray(result.data.RouteOperates)) {
+          if (result.data.RouteOperates.item && Array.isArray(result.data.RouteOperates.item)) {
+            // If it's in the form of {item: [...]} extract the item array
+            result.data.RouteOperates = result.data.RouteOperates.item;
+          } else {
+            // If it's a single item, wrap it in an array
+            result.data.RouteOperates = [result.data.RouteOperates];
+          }
+        }
+      }
+
       return {
         success: true,
         data: result.data
@@ -64,17 +80,18 @@ export class SoapClient {
     // Create the SOAP envelope with correct namespaces and encoding style
     return `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope 
-  xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
-  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns:urn="urn:sj_service">
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:urn="urn:sj_service"
+  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
   <soapenv:Header/>
   <soapenv:Body>
-    <urn:WsSearchFlight soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-      <param xsi:type="urn:reqWsSearchFlight">
+    <urn:${action} soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+      <param xsi:type="urn:req${action}">
         ${this.formatParams(allParams)}
       </param>
-    </urn:WsSearchFlight>
+    </urn:${action}>
   </soapenv:Body>
 </soapenv:Envelope>`;
   }
@@ -84,6 +101,9 @@ export class SoapClient {
       .map(([key, value]) => {
         if (value === undefined || value === null || value === '') {
           return `<${key} xsi:type="xsd:string">?</${key}>`;
+        } else if (typeof value === 'object') {
+          // Handle nested objects
+          return `<${key}>${this.formatParams(value)}</${key}>`;
         } else {
           return `<${key} xsi:type="xsd:string">${value}</${key}>`;
         }

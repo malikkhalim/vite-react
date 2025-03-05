@@ -4,7 +4,6 @@ import { DateSelect } from './DateSelect';
 import { PassengerTypeSelect } from './PassengerTypeSelect';
 import { TripTypeSelect } from './TripTypeSelect';
 import { ErrorMessage } from '../ui/ErrorMessage';
-import { validateRoute } from '../../utils/validation/routes';
 import { validateDates } from '../../utils/validation/dates';
 import type { BookingFormData } from '../../types/flight';
 import type { AirportCode } from '../../types/airport';
@@ -39,16 +38,13 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
     setError(null);
     setDateErrors({});
 
-    console.log("Submit event:", e);
-    console.log("onSearch prop:", onSearch);
-    console.log("formData:", formData);
-
-    const validationError = validateRoute(formData.from, formData.to);
-    if (validationError) {
-      setError(validationError);
+    // Validate from/to selection
+    if (formData.from === formData.to && formData.from !== '') {
+      setError('Origin and destination cannot be the same');
       return;
     }
 
+    // Validate dates
     const dateValidationErrors = validateDates(formData.departureDate, formData.returnDate, formData.tripType);
     if (dateValidationErrors) {
       setDateErrors(dateValidationErrors);
@@ -97,10 +93,10 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
           onChange={(e) => setFormData(prev => ({ 
             ...prev, 
             from: e.target.value as AirportCode,
-            to: '' as AirportCode
+            to: e.target.value === prev.to ? '' as AirportCode : prev.to
           }))}
           label="From"
-          showAllAirports
+          isOrigin={true}
         />
 
         <AirportSelect
@@ -112,7 +108,7 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
           }))}
           label="To"
           disabled={!formData.from}
-          availableAirports={formData.from === 'DIL' ? ['DRW', 'DPS', 'SIN', 'OEC', 'XMN'] : ['DIL']}
+          originValue={formData.from}
         />
       </div>
 
