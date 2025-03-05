@@ -1,4 +1,3 @@
-
 import { format } from 'date-fns';
 import { SoapClient } from '../client/soap-client';
 import type { BookingFormData, Flight } from '../../../types/flight';
@@ -113,6 +112,64 @@ export class FlightSearchAdapter {
     return [data];
   }
 
+  // Fixed date parsing function to handle the specific format from the API
+  private static parseApiDate(dateString: string): Date {
+    try {
+      console.log("Parsing date:", dateString);
+      
+      // Handle different date formats
+      if (!dateString) {
+        console.error("Empty date string");
+        return new Date(); // Return current date as fallback
+      }
+      
+      // Format: "07-MAR-25 07.00.00 PM"
+      const dateMatch = dateString.match(/(\d{2})-([A-Z]{3})-(\d{2}) (\d{2})\.(\d{2})\.(\d{2}) ([AP]M)/);
+      
+      if (!dateMatch) {
+        console.error("Date string doesn't match expected format:", dateString);
+        return new Date(); // Return current date as fallback
+      }
+      
+      const [_, day, monthStr, year, hour, minute, second, ampm] = dateMatch;
+      
+      // Map month abbreviation to month number (0-11)
+      const months: Record<string, number> = {
+        'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'MAY': 4, 'JUN': 5,
+        'JUL': 6, 'AUG': 7, 'SEP': 8, 'OCT': 9, 'NOV': 10, 'DEC': 11
+      };
+      
+      const month = months[monthStr];
+      if (month === undefined) {
+        console.error("Invalid month:", monthStr);
+        return new Date(); // Return current date as fallback
+      }
+      
+      // Parse 12-hour format with AM/PM
+      let hourNum = parseInt(hour, 10);
+      if (ampm === 'PM' && hourNum < 12) hourNum += 12;
+      if (ampm === 'AM' && hourNum === 12) hourNum = 0;
+      
+      // Year is 2-digit, so add 2000
+      const fullYear = 2000 + parseInt(year, 10);
+      
+      const date = new Date(
+        fullYear,
+        month,
+        parseInt(day, 10),
+        hourNum,
+        parseInt(minute, 10),
+        parseInt(second, 10)
+      );
+      
+      console.log("Parsed date:", date);
+      return date;
+    } catch (error) {
+      console.error("Date parsing error:", error, "for date string:", dateString);
+      return new Date(); // Return current date as fallback
+    }
+  }
+
   private static processFlightRoutes(routes: any[], searchKey: string): Flight[] {
     if (!routes || !Array.isArray(routes) || routes.length === 0) {
       console.log("No routes or empty array:", routes);
@@ -204,9 +261,9 @@ export class FlightSearchAdapter {
           }
         }
         
-        // Parse dates
-        const departureDate = new Date(route.Std);
-        const arrivalDate = new Date(route.Sta);
+        // Parse dates using our robust date parser
+        const departureDate = this.parseApiDate(route.Std);
+        const arrivalDate = this.parseApiDate(route.Sta);
         
         // Calculate duration if not provided
         let duration = route.FlightTime ? parseInt(String(route.FlightTime), 10) : 0;
@@ -214,6 +271,7 @@ export class FlightSearchAdapter {
           duration = Math.round((arrivalDate.getTime() - departureDate.getTime()) / (60 * 1000));
         }
         
+        // Create flight object
         const flight: Flight = {
           id: flightId,
           from: route.CityFrom as AirportCode,
