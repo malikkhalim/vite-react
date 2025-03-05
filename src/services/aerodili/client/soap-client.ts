@@ -1,73 +1,7 @@
 export class SoapClient {
-
-  static async debugSoapRequest() {
-    try {
-      // Verify WSDL URL
-      const wsdlUrl = 'http://demo-aerodili.nieve.id/wsdl.apiv12/index.php?wsdl';
-      
-      // Fetch WSDL to confirm accessibility
-      const wsdlResponse = await fetch(wsdlUrl);
-      const wsdlText = await wsdlResponse.text();
-      
-      console.log('WSDL Fetch Status:', wsdlResponse.status);
-      console.log('WSDL Content Length:', wsdlText.length);
-
-      // Check authentication
-      const soapUrl = 'http://demo-aerodili.nieve.id/wsdl.apiv12/index.php';
-      const envelope = `
-        <soapenv:Envelope 
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-          xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
-          xmlns:urn="urn:sj_service">
-          <soapenv:Header/>
-          <soapenv:Body>
-            <urn:WsSearchFlight soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-              <param xsi:type="urn:reqWsSearchFlight">
-                <Username>DILTRAVEL002</Username>
-                <Password>Abc12345</Password>
-                <ReturnStatus>NO</ReturnStatus>
-                <CityFrom>DIL</CityFrom>
-                <CityTo>DRW</CityTo>
-                <DepartDate>01-Mar-24</DepartDate>
-                <Adult>1</Adult>
-                <Child>0</Child>
-                <Infant>0</Infant>
-              </param>
-            </urn:WsSearchFlight>
-          </soapenv:Body>
-        </soapenv:Envelope>
-      `;
-
-      const soapResponse = await fetch(soapUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/xml;charset=UTF-8',
-          'SOAPAction': 'urn:sj_service#WsSearchFlight'
-        },
-        body: envelope
-      });
-
-      console.log('SOAP Response Status:', soapResponse.status);
-      const responseText = await soapResponse.text();
-      console.log('SOAP Response:', responseText);
-
-      return {
-        wsdlStatus: wsdlResponse.status,
-        wsdlContentLength: wsdlText.length,
-        soapResponseStatus: soapResponse.status,
-        soapResponseText: responseText
-      };
-
-    } catch (error) {
-      console.error('Debugging Error:', error);
-      throw error;
-    }
-  }
-
   static async execute(action: string, params: Record<string, any>) {
     try {
-      const envelope = this.createEnvelope(action, params);
+      const envelope = this.createSoapEnvelope(action, params);
 
       console.log(`Sending ${action} request`);
       
@@ -91,7 +25,7 @@ export class SoapClient {
       if (!result.success) {
         console.error('SOAP error response:', result.error);
         if (result.xmlResponse) {
-          console.log('Raw XML response:', result.xmlResponse);
+          console.log('Raw XML response (truncated):', result.xmlResponse);
         }
         
         return {
@@ -119,7 +53,7 @@ export class SoapClient {
     }
   }
 
-  private static createEnvelope(action: string, params: Record<string, any>): string {
+  private static createSoapEnvelope(action: string, params: Record<string, any>): string {
     // Process credentials
     const allParams = {
       Username: 'DILTRAVEL002',
@@ -127,29 +61,29 @@ export class SoapClient {
       ...params
     };
 
-    return `
-      <soapenv:Envelope 
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-        xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
-        xmlns:urn="urn:sj_service"
-        xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
-        <soapenv:Header/>
-        <soapenv:Body>
-          <urn:${action} soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-            <param xsi:type="urn:req${action}" xmlns:urn="urn:webservice">
-              ${this.formatParams(allParams)}
-            </param>
-          </urn:${action}>
-        </soapenv:Body>
-      </soapenv:Envelope>
-    `;
+    // Create the SOAP envelope with correct namespaces and encoding style
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope 
+  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" 
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+  xmlns:ns1="urn:sj_service"
+  xmlns:ns2="urn:webservice">
+  <SOAP-ENV:Body>
+    <ns1:${action} SOAP-ENV:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+      <param xsi:type="ns2:req${action}">
+        ${this.formatParams(allParams)}
+      </param>
+    </ns1:${action}>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>`;
   }
 
   private static formatParams(params: Record<string, any>): string {
     return Object.entries(params)
       .map(([key, value]) => {
-        if (value === undefined || value === null) {
+        if (value === undefined || value === null || value === '') {
           return `<${key} xsi:type="xsd:string">?</${key}>`;
         } else if (typeof value === 'object' && Array.isArray(value)) {
           if (value.length === 0) {
@@ -157,7 +91,7 @@ export class SoapClient {
           }
           // Handle arrays
           return `<${key} xsi:type="SOAP-ENC:Array">
-            ${value.map((item, index) => 
+            ${value.map((item) => 
               `<item>${typeof item === 'object' ? this.formatParams(item) : item}</item>`
             ).join('')}
           </${key}>`;
