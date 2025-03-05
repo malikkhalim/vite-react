@@ -70,11 +70,11 @@ export class SoapClient {
   xmlns:urn="urn:sj_service">
   <soapenv:Header/>
   <soapenv:Body>
-    <urn:WsSearchFlight soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-      <param xsi:type="urn:reqWsSearchFlight">
+    <urn:${action} soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+      <param xsi:type="urn:req${action}">
         ${this.formatParams(allParams)}
       </param>
-    </urn:WsSearchFlight>
+    </urn:${action}>
   </soapenv:Body>
 </soapenv:Envelope>`;
   }

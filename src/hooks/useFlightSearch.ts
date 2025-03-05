@@ -17,17 +17,10 @@ export function useFlightSearch() {
     setError(null);
 
     try {
-      console.log("Searching flights with form data:", formData);
       const searchResults = await FlightSearchAdapter.searchFlights(formData);
-      
-      console.log("Search results received:", 
-        searchResults.outboundFlights.length, "outbound flights,", 
-        searchResults.returnFlights.length, "return flights");
-      
       setResults(searchResults);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Flight search failed';
-      setError(errorMessage);
+      setError(err instanceof Error ? err.message : 'Flight search failed');
       console.error('Flight search error:', err);
     } finally {
       setLoading(false);
