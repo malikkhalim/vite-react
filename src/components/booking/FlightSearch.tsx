@@ -21,8 +21,10 @@ export function FlightSearch({
   selectedOutboundFlight,
   selectedReturnFlight
 }: FlightSearchProps) {
-  // The flights come from the parent component's API call
-  
+  // Access the flights from searchData
+  const outboundFlights = searchData.outboundFlights || [];
+  const returnFlights = searchData.returnFlights || [];
+
   const handleOutboundDateClick = () => {
     if (selectedOutboundFlight) {
       onFlightSelect(selectedOutboundFlight, false);
@@ -58,10 +60,9 @@ export function FlightSearch({
           onClick={handleOutboundDateClick}
         />
         
-        {/* This will be populated with API data now */}
         <div className="space-y-4">
-          {searchData.outboundFlights && searchData.outboundFlights.length > 0 ? (
-            searchData.outboundFlights.map(flight => (
+          {outboundFlights.length > 0 ? (
+            outboundFlights.map(flight => (
               <FlightCard
                 key={flight.id}
                 flight={flight}
@@ -108,10 +109,9 @@ export function FlightSearch({
             onClick={handleReturnDateClick}
           />
           
-          {/* This will be populated with API data now */}
           <div className="space-y-4">
-            {searchData.returnFlights && searchData.returnFlights.length > 0 ? (
-              searchData.returnFlights.map(flight => (
+            {returnFlights.length > 0 ? (
+              returnFlights.map(flight => (
                 <FlightCard
                   key={flight.id}
                   flight={flight}

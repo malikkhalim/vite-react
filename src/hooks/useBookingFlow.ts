@@ -1,3 +1,5 @@
+// src/hooks/useBookingFlow.ts
+
 import { useState, useCallback } from 'react';
 import { FlightSearchAdapter } from '../services/aerodili/adapters/flight-search';
 import { PNRAdapter } from '../services/aerodili/adapters/pnr';
@@ -38,22 +40,23 @@ export function useBookingFlow() {
     setError(null);
     
     try {
-      // Call the actual API
+      // Call the API
       const results = await FlightSearchAdapter.searchFlights(formData);
       
       console.log("Search results:", results);
       
-      // Add the flights to the searchData for easier access in components
-      const updatedFormData = {
-        ...formData,
-        outboundFlights: results.outboundFlights,
-        returnFlights: results.returnFlights
-      };
-      
+      // Store flights in the flights state
       setFlights({
         outbound: results.outboundFlights || [],
         return: results.returnFlights || []
       });
+      
+      // Also store flights in the searchData for easier access
+      const updatedFormData: BookingFormData = {
+        ...formData,
+        outboundFlights: results.outboundFlights,
+        returnFlights: results.returnFlights
+      };
       
       setSearchData(updatedFormData);
       setStep(2);
@@ -91,9 +94,11 @@ export function useBookingFlow() {
     if (!searchData) return;
     
     setLoading(true);
+    setError(null);
     
     try {
-      const updatedSearchData = {
+      // Create updated search data with the new date
+      const updatedSearchData: BookingFormData = {
         ...searchData,
         [isReturn ? 'returnDate' : 'departureDate']: date
       };
@@ -101,11 +106,26 @@ export function useBookingFlow() {
       // Make a new search with the updated date
       const results = await FlightSearchAdapter.searchFlights(updatedSearchData);
       
-      // Update flights and search data
-      setFlights(prev => ({
-        ...prev,
-        [isReturn ? 'return' : 'outbound']: results[isReturn ? 'returnFlights' : 'outboundFlights'] || []
-      }));
+      console.log(`${isReturn ? 'Return' : 'Outbound'} date search results:`, results);
+      
+      // Update flights in the flights state
+      if (isReturn) {
+        setFlights(prev => ({
+          ...prev,
+          return: results.returnFlights || []
+        }));
+        
+        // Also update the searchData
+        updatedSearchData.returnFlights = results.returnFlights;
+      } else {
+        setFlights(prev => ({
+          ...prev,
+          outbound: results.outboundFlights || []
+        }));
+        
+        // Also update the searchData
+        updatedSearchData.outboundFlights = results.outboundFlights;
+      }
       
       setSearchData(updatedSearchData);
       
@@ -199,6 +219,24 @@ export function useBookingFlow() {
     setError(null);
   }, []);
 
+  // Calculate total price
+  const calculateTotalPrice = useCallback(() => {
+    if (!selectedFlight) return 0;
+    
+    const outboundPrice = searchData?.class === 'business'
+      ? selectedFlight.businessPrice
+      : selectedFlight.price;
+      
+    const returnPrice = selectedReturnFlight && searchData?.class === 'business'
+      ? selectedReturnFlight.businessPrice
+      : selectedReturnFlight?.price || 0;
+      
+    const passengerCount = searchData?.passengers.adult || 0 + 
+                          (searchData?.passengers.child || 0);
+                          
+    return (outboundPrice + returnPrice) * passengerCount;
+  }, [selectedFlight, selectedReturnFlight, searchData]);
+
   return {
     step,
     loading,
@@ -217,6 +255,7 @@ export function useBookingFlow() {
     processPayment,
     resetBooking,
     handleDateChange,
+    calculateTotalPrice,
     goBack
   };
 }

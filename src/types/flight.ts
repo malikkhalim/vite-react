@@ -35,7 +35,6 @@ export interface PassengerCount {
 }
 
 export interface BookingFormData {
-  outboundFlights: boolean;
   from: AirportCode;
   to: AirportCode;
   departureDate: string;
@@ -43,4 +42,57 @@ export interface BookingFormData {
   passengers: PassengerCount;
   class: FlightClass;
   tripType: TripType;
+  outboundFlights?: Flight[];
+  returnFlights?: Flight[];
+}
+
+export interface PassengerTypeInfo {
+  type: PassengerType;
+  label: string;
+  ageRange: string;
+  description: string;
+  minPerBooking?: number;
+  maxPerBooking?: number;
+}
+
+export interface Aircraft {
+  type: string;
+  code: string;
+  capacity: {
+    economy: number;
+    business: number;
+  };
+  baggage: {
+    economy: number;
+    business: number;
+  };
+}
+
+export interface Route {
+  from: AirportCode;
+  to: AirportCode;
+  distance: number;
+  duration: number;
+  basePrice: number;
+  businessMultiplier: number;
+}
+
+export interface FlightSchedule {
+  routeId: string;
+  flightNumber: string;
+  departureTime: string;
+  frequency: string[];
+}
+
+export interface FlightServices {
+  economy: string[];
+  business: string[];
+}
+
+export interface Passenger {
+  firstName: string;
+  lastName: string;
+  passport: string;
+  email: string;
+  phone: string;
 }
