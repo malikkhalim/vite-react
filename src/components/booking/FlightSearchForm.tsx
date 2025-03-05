@@ -35,6 +35,10 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
   });
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    console.log("Submit event:", e);
+    console.log("onSearch prop:", onSearch);
+    console.log("formData:", formData);
+
     e.preventDefault();
     setError(null);
     setDateErrors({});
@@ -66,7 +70,7 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
   const handleDateChange = (field: 'departureDate' | 'returnDate') => (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDate = e.target.value;
     setFormData(prev => ({ ...prev, [field]: newDate }));
-    
+
     // Clear date errors when user changes dates
     setDateErrors(prev => ({ ...prev, [field]: undefined }));
   };
@@ -75,17 +79,17 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
     <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md space-y-6">
       {error && <ErrorMessage message={error} />}
 
-      <TripTypeSelect 
-        value={formData.tripType} 
-        onChange={handleTripTypeChange} 
+      <TripTypeSelect
+        value={formData.tripType}
+        onChange={handleTripTypeChange}
       />
 
       <div className="grid md:grid-cols-2 gap-4">
         <AirportSelect
           name="from"
           value={formData.from}
-          onChange={(e) => setFormData(prev => ({ 
-            ...prev, 
+          onChange={(e) => setFormData(prev => ({
+            ...prev,
             from: e.target.value as AirportCode,
             to: '' as AirportCode
           }))}
@@ -96,9 +100,9 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
         <AirportSelect
           name="to"
           value={formData.to}
-          onChange={(e) => setFormData(prev => ({ 
-            ...prev, 
-            to: e.target.value as AirportCode 
+          onChange={(e) => setFormData(prev => ({
+            ...prev,
+            to: e.target.value as AirportCode
           }))}
           label="To"
           disabled={!formData.from}
@@ -129,9 +133,9 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
 
       <PassengerTypeSelect
         value={formData.passengers}
-        onChange={(passengers) => setFormData(prev => ({ 
-          ...prev, 
-          passengers 
+        onChange={(passengers) => setFormData(prev => ({
+          ...prev,
+          passengers
         }))}
       />
 
