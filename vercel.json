@@ -16,18 +16,13 @@
     },
     {
       "src": "/api/soap-proxy",
-      "methods": [
-        "POST"
-      ],
+      "methods": ["POST"],
       "dest": "/api/soap-proxy.js"
     },
     {
-      "src": "/src/payment/(.*)",
+      "src": "/(.*)",
       "dest": "/index.html"
     }
-  ],
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "env": {
     "AERODILI_USERNAME": "DILTRAVEL002",
