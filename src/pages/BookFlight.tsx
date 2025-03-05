@@ -72,7 +72,7 @@ export default function BookFlight() {
       {!loading && (
         <div className="mt-8">
           {step === 1 && (
-            <FlightSearchForm onSearch={debugAPI} />
+            <FlightSearchForm onSearch={searchFlights} />
           )}
 
           {step === 2 && searchData && (
