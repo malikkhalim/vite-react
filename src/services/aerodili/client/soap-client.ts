@@ -2,8 +2,6 @@ export class SoapClient {
   static async execute(action: string, params: Record<string, any>) {
     try {
       const envelope = this.createSoapEnvelope(action, params);
-
-      console.log(`Sending ${action} request`);
       
       const response = await fetch('/api/soap-proxy', {
         method: 'POST',
@@ -24,22 +22,18 @@ export class SoapClient {
       
       if (!result.success) {
         console.error('SOAP error response:', result.error);
-        if (result.xmlResponse) {
-          console.log('Raw XML response (truncated):', result.xmlResponse);
-        }
-        
         return {
           success: false,
           error: {
-            code: result.error.code || 'SOAP_ERROR',
-            message: result.error.message || 'SOAP request failed'
+            code: result.error?.code || 'SOAP_ERROR',
+            message: result.error?.message || 'SOAP request failed'
           }
         };
       }
 
-      // Clean and normalize the response data
-      const cleanedData = this.cleanResponseData(result.data, action);
-
+      // Transform the complex XML structure into a clean JavaScript object
+      const cleanedData = this.cleanXmlData(result.data);
+      
       return {
         success: true,
         data: cleanedData
@@ -56,56 +50,46 @@ export class SoapClient {
     }
   }
 
-  // Helper method to clean and normalize response data
-  private static cleanResponseData(data: any, action: string): any {
+  // Helper function to clean up XML response data with #text attributes
+  private static cleanXmlData(data: any): any {
     if (!data) return data;
-
-    // Handle specific actions
-    if (action === 'WsRouteOperate' && data.RouteOperates) {
-      // Transform RouteOperates into a clean array
-      let routeItems = [];
-      
-      if (Array.isArray(data.RouteOperates)) {
-        routeItems = data.RouteOperates;
-      } else if (data.RouteOperates.item && Array.isArray(data.RouteOperates.item)) {
-        routeItems = data.RouteOperates.item;
-      } else {
-        routeItems = [data.RouteOperates];
-      }
-      
-      // Clean each item in the array
-      data.RouteOperates = routeItems.map(item => this.cleanXmlObject(item));
-    }
-
-    return this.cleanXmlObject(data);
-  }
-
-  // Recursively clean XML-parsed objects
-  private static cleanXmlObject(obj: any): any {
-    if (!obj || typeof obj !== 'object') return obj;
     
     // Handle arrays
-    if (Array.isArray(obj)) {
-      return obj.map(item => this.cleanXmlObject(item));
+    if (Array.isArray(data)) {
+      return data.map(item => this.cleanXmlData(item));
     }
     
     // Handle objects
-    const cleanObj: any = {};
-    
-    for (const key in obj) {
-      // Skip special XML attributes
-      if (key.startsWith('@_') || key === '#text') continue;
-      
-      // Extract text value if it's an XML element object
-      if (obj[key] && typeof obj[key] === 'object' && obj[key]['#text'] !== undefined) {
-        cleanObj[key] = obj[key]['#text'];
-      } else {
-        // Clean nested objects
-        cleanObj[key] = this.cleanXmlObject(obj[key]);
+    if (typeof data === 'object') {
+      // Special case for item arrays in SOAP responses
+      if (data.item && Array.isArray(data.item)) {
+        return this.cleanXmlData(data.item);
       }
+      
+      const result: Record<string, any> = {};
+      
+      for (const key in data) {
+        // Skip XML type attributes
+        if (key.startsWith('@_')) continue;
+        
+        // Handle XML text nodes
+        if (key === '#text') {
+          return data[key]; // Return the text value directly
+        }
+        
+        // Handle normal XML elements with text nodes
+        if (data[key] && typeof data[key] === 'object' && data[key]['#text'] !== undefined) {
+          result[key] = data[key]['#text'];
+        } else {
+          result[key] = this.cleanXmlData(data[key]);
+        }
+      }
+      
+      return result;
     }
     
-    return cleanObj;
+    // Return primitive values as is
+    return data;
   }
 
   private static createSoapEnvelope(action: string, params: Record<string, any>): string {

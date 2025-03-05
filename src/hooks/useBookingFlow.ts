@@ -41,13 +41,21 @@ export function useBookingFlow() {
       // Call the actual API
       const results = await FlightSearchAdapter.searchFlights(formData);
       
-      // Set flights from API results
+      console.log("Search results:", results);
+      
+      // Add the flights to the searchData for easier access in components
+      const updatedFormData = {
+        ...formData,
+        outboundFlights: results.outboundFlights,
+        returnFlights: results.returnFlights
+      };
+      
       setFlights({
         outbound: results.outboundFlights || [],
         return: results.returnFlights || []
       });
       
-      setSearchData(formData);
+      setSearchData(updatedFormData);
       setStep(2);
     } catch (err) {
       console.error("Flight search error:", err);
