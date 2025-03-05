@@ -84,6 +84,28 @@ export class FlightSearchAdapter {
         (option: any) => ['Y', 'W', 'S', 'H'].includes(option.Class)
       ) || classOptions[classOptions.length - 1];
       
+      // Calculate total price by summing relevant fare components
+      const calculateTotalPrice = (priceDetails: any[]) => {
+        // Find adult price details
+        const adultPriceDetail = priceDetails.find(
+          (detail) => detail.PaxCategory === 'ADT'
+        );
+        
+        if (!adultPriceDetail) return 0;
+        
+        // Sum up all positive fare components
+        const totalPrice = adultPriceDetail.FareComponent.reduce(
+          (total: number, component: any) => {
+            const amount = parseFloat(component.Amount || '0');
+            // Include only positive amounts (basic fare, fees, etc.)
+            return total + (amount > 0 ? amount : 0);
+          },
+          0
+        );
+        
+        return totalPrice;
+      };
+      
       // Extract flight details
       const segment = route.Segments[0];
       const flightId = `${segment.CarrierCode}${segment.NoFlight}`;
@@ -101,9 +123,11 @@ export class FlightSearchAdapter {
         arrivalDate: route.Sta,
         duration: parseInt(route.FlightTime || '120', 10),
         aircraft: segment.Aircraft || 'Airbus A320',
-        price: economyClass ? parseFloat(economyClass.Price) : (routeConfig?.basePrice || 0),
+        price: economyClass 
+          ? calculateTotalPrice(economyClass.PriceDetail || []) 
+          : (routeConfig?.basePrice || 0),
         businessPrice: businessClass 
-          ? parseFloat(businessClass.Price) 
+          ? calculateTotalPrice(businessClass.PriceDetail || [])
           : (routeConfig ? routeConfig.basePrice * routeConfig.businessMultiplier : 0),
         seatsAvailable: economyClass ? parseInt(economyClass.Availability, 10) : 0,
         businessSeatsAvailable: businessClass ? parseInt(businessClass.Availability, 10) : 0,
