@@ -20,6 +20,15 @@
       "dest": "/api/soap-proxy.js"
     },
     {
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1",
+      "headers": { "cache-control": "public, max-age=31536000, immutable" }
+    },
+    {
+      "src": "/(.*)\\.(?:ico|png|jpg|jpeg|gif|svg|css|js|json)",
+      "dest": "/$1.$2"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
