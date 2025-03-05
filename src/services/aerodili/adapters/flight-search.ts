@@ -1,12 +1,11 @@
-import { format } from 'date-fns';
+import { Flight, FlightClass, BookingFormData } from '../../../types/flight';
 import { SoapClient } from '../client/soap-client';
-import type { BookingFormData, Flight } from '../../../types/flight';
-import { routes } from '../../../data/flights/routes';
+import { format, parse } from 'date-fns';
 
 export class FlightSearchAdapter {
   static async searchFlights(formData: BookingFormData) {
     try {
-      console.log("Search data:", formData);
+      console.log("Searching flights with data:", formData);
       
       const requestData = {
         ReturnStatus: formData.tripType === 'return' ? 'YES' : 'NO',
@@ -31,22 +30,25 @@ export class FlightSearchAdapter {
         throw new Error(response.error?.message || 'Search failed');
       }
 
-      console.log("API Response:", response.data);
+      console.log("API Response received");
       
-      const searchKey = response.data.SearchKey;
+      // Extract search key for booking
+      const searchKey = response.data.SearchKey["#text"];
       
       // Process outbound flights
-      const outboundTripDetail = response.data.TripDetail.find(
-        (trip: any) => trip.Category === 'Departure'
+      const outboundTripDetail = response.data.TripDetail[0]?.item.find(
+        (trip: any) => trip.Category["#text"] === 'Departure'
       );
       
-      const outboundFlights = this.processTripDetail(outboundTripDetail, searchKey);
+      const outboundFlights = outboundTripDetail 
+        ? this.processTripDetail(outboundTripDetail, searchKey)
+        : [];
       
       // Process return flights if needed
       let returnFlights: Flight[] = [];
       if (formData.tripType === 'return') {
-        const returnTripDetail = response.data.TripDetail.find(
-          (trip: any) => trip.Category === 'Return'
+        const returnTripDetail = response.data.TripDetail[0]?.item.find(
+          (trip: any) => trip.Category["#text"] === 'Return'
         );
         
         if (returnTripDetail) {
@@ -65,119 +67,112 @@ export class FlightSearchAdapter {
   }
 
   private static processTripDetail(tripDetail: any, searchKey: string): Flight[] {
-    if (!tripDetail || !tripDetail.FlightRoute || !tripDetail.FlightRoute.length) {
+    if (!tripDetail || !tripDetail.FlightRoute) {
       return [];
     }
     
-    return tripDetail.FlightRoute.map((route: any) => {
-      // Find available class options
-      const classOptions = route.ClassesAvailable[0].filter(
-        (classOption: any) => classOption.SeatAvail === 'OPEN'
+    // Ensure FlightRoute is always treated as an array
+    const flightRoutes = Array.isArray(tripDetail.FlightRoute[0].item) 
+      ? tripDetail.FlightRoute[0].item 
+      : [tripDetail.FlightRoute[0].item];
+    
+    return flightRoutes.map((route: any) => {
+      // Extract segments
+      const segments = route.Segments[0].item;
+      const segment = Array.isArray(segments) ? segments[0] : segments;
+      
+      // Extract class availability information
+      const classesAvailable = route.ClassesAvailable[0].item[0].item;
+      
+      // Find economy and business class options
+      const economyClasses = classesAvailable.filter(
+        (cls: any) => cls.SeatAvail["#text"] === 'OPEN' && 
+          ['Q', 'V', 'T', 'M', 'N', 'K', 'L', 'W'].includes(cls.Class["#text"])
       );
       
-      // Prioritize economy and business class options
-      const economyClass = classOptions.find(
-        (option: any) => ['X', 'V', 'M', 'L', 'K', 'Q', 'T', 'N'].includes(option.Class)
-      ) || classOptions[0];
+      const businessClasses = classesAvailable.filter(
+        (cls: any) => cls.SeatAvail["#text"] === 'OPEN' && 
+          ['S', 'Y', 'C'].includes(cls.Class["#text"])
+      );
       
-      const businessClass = classOptions.find(
-        (option: any) => ['Y', 'S', 'C'].includes(option.Class)
-      ) || classOptions[classOptions.length - 1];
+      const economyClass = economyClasses.length > 0 ? economyClasses[0] : null;
+      const businessClass = businessClasses.length > 0 ? businessClasses[0] : null;
       
-      // Extract flight details
-      const segment = route.Segments[0];
-      const flightId = `${segment.CarrierCode}${segment.NoFlight}`;
+      // Parse dates
+      const departureDate = this.parseDateTime(route.Std["#text"]);
+      const arrivalDate = this.parseDateTime(route.Sta["#text"]);
       
-      // Extract baggage information
-      const extractBaggageInfo = (fBag: any[]) => {
-        const baggageInfo: {[key: string]: number} = {};
-        fBag.forEach(bag => {
-          baggageInfo[bag.Class] = parseInt(bag.Amount.replace('Kg', ''), 10);
-        });
-        return baggageInfo;
+      // Calculate duration in minutes
+      const duration = route.FlightTime ? parseInt(route.FlightTime["#text"], 10) : 0;
+      
+      // Extract baggage allowance
+      const baggageInfo = {
+        economy: 25, // Default
+        business: 35  // Default
       };
       
-      // Detailed price calculation
-      const calculateDetailedPrice = (priceDetail: any) => {
-        if (!priceDetail || !priceDetail.item) return 0;
-        
-        const adultPriceDetail = priceDetail.item.find(
-          (detail: any) => detail.PaxCategory === 'ADT'
+      if (segment.FBag && segment.FBag.item) {
+        const economyBag = segment.FBag.item.find(
+          (bag: any) => ['Q', 'V', 'T', 'M', 'N', 'K'].includes(bag.Class["#text"])
         );
         
-        if (!adultPriceDetail) return 0;
-        
-        // Sum up relevant fare components
-        const basicFare = parseFloat(
-          adultPriceDetail.FareComponent.find(
-            (component: any) => component.FareChargeTypeCode === 'BF'
-          )?.Amount || '0'
+        const businessBag = segment.FBag.item.find(
+          (bag: any) => ['S', 'Y', 'C'].includes(bag.Class["#text"])
         );
         
-        const pscFee = parseFloat(
-          adultPriceDetail.FareComponent.find(
-            (component: any) => component.FareChargeTypeCode === 'PSC'
-          )?.Amount || '0'
-        );
+        if (economyBag) {
+          baggageInfo.economy = parseInt(economyBag.Amount["#text"].replace('Kg', ''), 10);
+        }
         
-        return basicFare + pscFee;
-      };
+        if (businessBag) {
+          baggageInfo.business = parseInt(businessBag.Amount["#text"].replace('Kg', ''), 10);
+        }
+      }
+      
+      // Create flight object
+      const flightId = `${segment.CarrierCode["#text"]}${segment.NoFlight["#text"]}`;
       
       return {
         id: flightId,
-        from: route.CityFrom,
-        to: route.CityTo,
-        departureDate: route.Std,
-        arrivalDate: route.Sta,
-        flightNumber: `${segment.CarrierCode}${segment.NoFlight}`,
-        carrier: segment.CarrierCode,
-        duration: parseInt(route.FlightTime || '120', 10),
-        aircraft: segment.Aircraft || 'Airbus A320',
-        
-        // Pricing details
-        price: calculateDetailedPrice(economyClass?.PriceDetail),
-        priceDetails: {
-          total: parseFloat(economyClass?.Price || '0'),
-          basicFare: calculateDetailedPrice(economyClass?.PriceDetail),
-          currency: economyClass?.Currency || 'USD'
+        from: route.CityFrom["#text"],
+        to: route.CityTo["#text"],
+        departureDate: departureDate.toISOString(),
+        arrivalDate: arrivalDate.toISOString(),
+        duration: duration,
+        aircraft: `${segment.CarrierCode["#text"]} ${segment.NoFlight["#text"]}`,
+        price: economyClass ? parseFloat(economyClass.Price["#text"]) : 0,
+        businessPrice: businessClass ? parseFloat(businessClass.Price["#text"]) : 0,
+        seatsAvailable: economyClass ? parseInt(economyClass.Availability["#text"], 10) : 0,
+        businessSeatsAvailable: businessClass ? parseInt(businessClass.Availability["#text"], 10) : 0,
+        baggage: baggageInfo,
+        services: {
+          economy: [
+            'Complimentary snacks and beverages',
+            'Standard baggage allowance',
+            'In-flight entertainment'
+          ],
+          business: [
+            'Priority boarding',
+            'Premium meals and beverages',
+            'Extra legroom',
+            'Increased baggage allowance',
+            'Lounge access'
+          ]
         },
-        
-        businessPrice: calculateDetailedPrice(businessClass?.PriceDetail),
-        businessPriceDetails: {
-          total: parseFloat(businessClass?.Price || '0'),
-          basicFare: calculateDetailedPrice(businessClass?.PriceDetail),
-          currency: businessClass?.Currency || 'USD'
-        },
-        
-        // Seat availability
-        seatsAvailable: parseInt(economyClass?.Availability || '0', 10),
-        businessSeatsAvailable: parseInt(businessClass?.Availability || '0', 10),
-        
-        // Baggage information
-        baggage: {
-          economy: extractBaggageInfo(segment.FBag || [])
-        },
-        
-        // Additional flight details
-        departureStation: segment.DepartureStation,
-        arrivalStation: segment.ArrivalStation,
-        
-        // Search and booking details
         searchKey: searchKey,
-        classKey: economyClass?.Key || '',
-        seatAvailabilityStatus: {
-          economy: economyClass?.SeatAvail || 'CLOSE',
-          business: businessClass?.SeatAvail || 'CLOSE'
-        },
-        
-        // Additional metadata
-        classAvailable: classOptions.map(option => ({
-          class: option.Class,
-          availability: option.Availability,
-          seatAvail: option.SeatAvail,
-          price: option.Price
-        }))
+        classKey: economyClass ? economyClass.Key["#text"] : ''
       };
     });
+  }
+
+  private static parseDateTime(dateTimeStr: string): Date {
+    // Format: "06-MAR-25 07.00.00 PM"
+    try {
+      const date = parse(dateTimeStr, 'dd-MMM-yy hh.mm.ss a', new Date());
+      return date;
+    } catch (error) {
+      console.error("Date parsing error:", error, dateTimeStr);
+      return new Date(); // Fallback to current date
+    }
   }
 }
