@@ -1,5 +1,3 @@
-// src/services/hitpay/vite-proxy-client.ts
-
 import { HITPAY_CONFIG } from '../../config/hitpay';
 
 interface CreatePaymentOptions {

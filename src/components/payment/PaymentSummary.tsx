@@ -9,7 +9,7 @@ interface PaymentSummaryProps {
   passengers: PassengerCount;
   flightPrice: number;
   flight?: Flight;
-  returnFlight?: Flight;
+  returnFlight?: Flight | null;
   className?: string;
 }
 

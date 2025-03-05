@@ -1,8 +1,41 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AlertOctagon } from 'lucide-react';
 import { Container } from '../../components/layout/Container';
 
 export default function PaymentFailed() {
+  useEffect(() => {
+    // Clean up URL parameters
+    if (window.location.search) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    
+    // Mark the payment as failed in localStorage if we have an active session
+    const activeSession = localStorage.getItem('hitpay_active_session');
+    const activeReference = localStorage.getItem('hitpay_active_reference');
+    
+    if (activeReference) {
+      try {
+        const paymentKey = `hitpay_payment_${activeReference}`;
+        const paymentData = JSON.parse(localStorage.getItem(paymentKey) || '{}');
+        
+        if (paymentData && paymentData.reference) {
+          // Update with failed status
+          localStorage.setItem(paymentKey, JSON.stringify({
+            ...paymentData,
+            status: 'failed',
+            failedAt: Date.now()
+          }));
+        }
+      } catch (e) {
+        console.error('Error updating payment status:', e);
+      }
+    }
+    
+    // Clear the active payment session
+    localStorage.removeItem('hitpay_active_session');
+    localStorage.removeItem('hitpay_active_reference');
+  }, []);
+  
   // Get the referrer or previous page to enable going back
   const referrer = document.referrer || '/';
   

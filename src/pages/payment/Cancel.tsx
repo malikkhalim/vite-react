@@ -1,8 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { XCircle } from 'lucide-react';
 import { Container } from '../../components/layout/Container';
 
 export default function PaymentCancel() {
+  useEffect(() => {
+    // Clean up URL parameters
+    if (window.location.search) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    
+    // Clear the active payment session
+    localStorage.removeItem('hitpay_active_session');
+    localStorage.removeItem('hitpay_active_reference');
+  }, []);
+  
   // Get the referrer or previous page to enable going back
   const referrer = document.referrer || '/';
   

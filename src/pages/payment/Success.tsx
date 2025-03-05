@@ -10,47 +10,72 @@ export default function PaymentSuccess() {
   const [emailSent, setEmailSent] = useState(false);
   
   useEffect(() => {
-    // Get payment data from URL parameters
+    // First, check if we have URL parameters and clean them up
     const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session');
     const reference = urlParams.get('reference');
     const status = urlParams.get('status');
     
+    // If we have URL parameters, clean the URL by redirecting to the clean version
+    if (sessionId || reference || status) {
+      // Replace the current URL with the clean version (no query parameters)
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    
     // Retrieve payment details from localStorage
     const getPaymentData = () => {
-      if (!reference) return null;
+      // First try to get the active session ID
+      const activeSession = localStorage.getItem('hitpay_active_session');
+      const activeReference = localStorage.getItem('hitpay_active_reference');
+      
+      // If we have a session ID from URL, use that
+      const lookupReference = reference || activeReference;
+      const lookupSessionId = sessionId || activeSession;
+      
+      if (!lookupReference && !lookupSessionId) return null;
       
       // Check localStorage for payment data
       const storedPayments = Object.keys(localStorage)
         .filter(key => key.startsWith('hitpay_payment_'))
         .map(key => {
           try {
-            const data = JSON.parse(localStorage.getItem(key) || '{}');
-            return data;
+            return JSON.parse(localStorage.getItem(key) || '{}');
           } catch (e) {
             return null;
           }
         })
         .filter(Boolean);
       
-      // Find matching payment
+      // Find matching payment - prioritize reference match
       return storedPayments.find(payment => 
-        payment.reference === reference ||
-        (payment.id && payment.id === reference)
+        (lookupReference && payment.reference === lookupReference) ||
+        (lookupSessionId && payment.id === lookupSessionId)
       );
     };
     
     const data = getPaymentData();
     
     if (data) {
-      setPaymentData({
+      // Update payment data with completed status
+      const updatedData = {
         ...data,
         status: status || 'completed',
         date: new Date().toISOString()
-      });
+      };
       
-      // Send email with payment confirmation
+      // Update in localStorage
+      localStorage.setItem(`hitpay_payment_${data.reference}`, JSON.stringify(updatedData));
+      
+      // Update state
+      setPaymentData(updatedData);
+      
+      // Clear the active session
+      localStorage.removeItem('hitpay_active_session');
+      localStorage.removeItem('hitpay_active_reference');
+      
+      // Send email with payment confirmation if we have an email
       if (!emailSent && data.email) {
-        sendPaymentConfirmationEmail(data)
+        sendPaymentConfirmationEmail(updatedData)
           .then(() => setEmailSent(true))
           .catch((err: any) => console.error('Failed to send email:', err));
       }

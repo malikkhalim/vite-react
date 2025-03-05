@@ -60,7 +60,7 @@ export function PaymentForm({
           <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
             <h3 className="text-lg font-semibold">Payment Method</h3>
 
-            {/* Payment Method Selector */}
+            {/* Payment Method Selector
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -83,7 +83,7 @@ export function PaymentForm({
               >
                 Bank Transfer
               </button>
-            </div>
+            </div> */}
 
             <div className="flex justify-between items-center pt-4 border-t border-gray-200">
               <span className="text-gray-600">Total Amount</span>

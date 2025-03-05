@@ -24,24 +24,51 @@ export function HitPayCheckout({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // Generate a session ID to track this payment attempt
+  const generateSessionId = () => {
+    return `session_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+  };
+  
   const handlePayment = async () => {
     setLoading(true);
     setError(null);
     
     try {
+      // Generate reference number if not provided
+      const reference = referenceNumber || 
+        `PAY-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+      
+      // Create a session ID for this payment attempt
+      const sessionId = generateSessionId();
+      
+      // Store payment information in session storage with the session ID
+      const paymentData = {
+        id: sessionId,
+        reference,
+        amount,
+        name,
+        email,
+        phone,
+        timestamp: Date.now(),
+        status: 'pending'
+      };
+      
+      // Save payment data to localStorage
+      localStorage.setItem(`hitpay_payment_${reference}`, JSON.stringify(paymentData));
+      
+      // Also save the active session ID to easily retrieve the current payment
+      localStorage.setItem('hitpay_active_session', sessionId);
+      localStorage.setItem('hitpay_active_reference', reference);
+      
       // Check if we should use the direct form approach as a fallback
       const useFallback = !HITPAY_CONFIG.API_KEY || 
                          process.env.NODE_ENV === 'development';
                          
       if (useFallback) {
         // Use the direct form approach instead
-        submitDirectForm();
+        submitDirectForm(reference, sessionId);
         return;
       }
-      
-      // Generate reference number if not provided
-      const reference = referenceNumber || 
-        `PAY-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
       
       // Prepare request data
       const origin = window.location.origin;
@@ -49,9 +76,9 @@ export function HitPayCheckout({
         amount: amount.toFixed(2),
         currency: HITPAY_CONFIG.CURRENCY,
         reference_number: reference,
-        redirect_url: `${origin}${HITPAY_CONFIG.SUCCESS_URL}`,
+        redirect_url: `${origin}${HITPAY_CONFIG.SUCCESS_URL}?session=${sessionId}`,
         webhook: `${origin}${HITPAY_CONFIG.WEBHOOK_PATH}`,
-        cancel_url: `${origin}${HITPAY_CONFIG.CANCEL_URL}`,
+        cancel_url: `${origin}${HITPAY_CONFIG.CANCEL_URL}?session=${sessionId}`,
         payment_methods: ['card', 'paynow_online'],
         // Include API key in the body for the Vercel API route
         apiKey: HITPAY_CONFIG.API_KEY
@@ -81,14 +108,14 @@ export function HitPayCheckout({
         throw new Error(data.error || data.message || `API error: ${response.status}`);
       }
       
-      // Store payment info in localStorage for tracking
-      localStorage.setItem(`hitpay_payment_${data.id || reference}`, JSON.stringify({
-        id: data.id,
-        reference: data.reference_number || reference,
-        amount,
-        timestamp: Date.now(),
-        status: 'pending'
-      }));
+      // Update payment info with hitpay payment ID
+      if (data.id) {
+        const updatedPaymentData = {
+          ...paymentData,
+          hitpay_id: data.id
+        };
+        localStorage.setItem(`hitpay_payment_${reference}`, JSON.stringify(updatedPaymentData));
+      }
       
       // Redirect to the HitPay checkout URL
       if (data.url) {
@@ -106,7 +133,10 @@ export function HitPayCheckout({
       
       // Try the fallback method if API fails
       if (confirm('Payment service error. Would you like to try an alternative payment method?')) {
-        submitDirectForm();
+        const reference = referenceNumber || 
+          `PAY-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+        const sessionId = generateSessionId();
+        submitDirectForm(reference, sessionId);
       }
     } finally {
       setLoading(false);
@@ -114,11 +144,7 @@ export function HitPayCheckout({
   };
   
   // Fallback approach using direct form submission
-  const submitDirectForm = () => {
-    // Generate reference number if not provided
-    const reference = referenceNumber || 
-      `PAY-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-      
+  const submitDirectForm = (reference: string, sessionId: string) => {
     // Create a form element
     const form = document.createElement('form');
     form.method = 'POST';
@@ -132,9 +158,9 @@ export function HitPayCheckout({
       'amount': amount.toFixed(2),
       'currency': HITPAY_CONFIG.CURRENCY,
       'reference_number': reference,
-      'redirect_url': `${origin}${HITPAY_CONFIG.SUCCESS_URL}`,
+      'redirect_url': `${origin}${HITPAY_CONFIG.SUCCESS_URL}?session=${sessionId}`,
       'webhook': `${origin}${HITPAY_CONFIG.WEBHOOK_PATH}`,
-      'cancel_url': `${origin}${HITPAY_CONFIG.CANCEL_URL}`
+      'cancel_url': `${origin}${HITPAY_CONFIG.CANCEL_URL}?session=${sessionId}`
     };
     
     // Add optional fields
@@ -150,14 +176,6 @@ export function HitPayCheckout({
       input.value = value;
       form.appendChild(input);
     });
-    
-    // Track the payment in localStorage
-    localStorage.setItem(`hitpay_payment_${reference}`, JSON.stringify({
-      reference,
-      amount,
-      timestamp: Date.now(),
-      status: 'pending'
-    }));
     
     // Submit the form
     document.body.appendChild(form);
