@@ -63,21 +63,20 @@ export class SoapClient {
 
     // Create the SOAP envelope with correct namespaces and encoding style
     return `<?xml version="1.0" encoding="UTF-8"?>
-<SOAP-ENV:Envelope 
-  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" 
-  xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
-  xmlns:ns1="urn:sj_service"
-  xmlns:ns2="urn:webservice">
-  <SOAP-ENV:Body>
-    <ns1:${action} SOAP-ENV:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-      <param xsi:type="ns2:req${action}">
+<soapenv:Envelope 
+  xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:urn="urn:sj_service">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <urn:WsSearchFlight soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+      <param xsi:type="urn:reqWsSearchFlight">
         ${this.formatParams(allParams)}
       </param>
-    </ns1:${action}>
-  </SOAP-ENV:Body>
-</SOAP-ENV:Envelope>`;
+    </urn:WsSearchFlight>
+  </soapenv:Body>
+</soapenv:Envelope>`;
   }
 
   private static formatParams(params: Record<string, any>): string {
@@ -85,21 +84,7 @@ export class SoapClient {
       .map(([key, value]) => {
         if (value === undefined || value === null || value === '') {
           return `<${key} xsi:type="xsd:string">?</${key}>`;
-        } else if (typeof value === 'object' && Array.isArray(value)) {
-          if (value.length === 0) {
-            return `<${key} xsi:nil="true" xsi:type="SOAP-ENC:Array"/>`;
-          }
-          // Handle arrays
-          return `<${key} xsi:type="SOAP-ENC:Array">
-            ${value.map((item) => 
-              `<item>${typeof item === 'object' ? this.formatParams(item) : item}</item>`
-            ).join('')}
-          </${key}>`;
-        } else if (typeof value === 'object') {
-          // Handle nested objects
-          return `<${key}>${this.formatParams(value)}</${key}>`;
         } else {
-          // Handle primitive values
           return `<${key} xsi:type="xsd:string">${value}</${key}>`;
         }
       })
