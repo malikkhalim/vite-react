@@ -3,7 +3,6 @@ import { ArrowRight } from 'lucide-react';
 import { DateNavigation } from './DateNavigation';
 import FlightCard from './FlightCard';
 import { Flight, FlightClass, BookingFormData } from '../../types/flight';
-import { searchFlights } from '../../utils/flights/search';
 
 interface FlightSearchProps {
   searchData: BookingFormData;
@@ -22,20 +21,8 @@ export function FlightSearch({
   selectedOutboundFlight,
   selectedReturnFlight
 }: FlightSearchProps) {
-  const outboundFlights = searchFlights({
-    ...searchData,
-    date: searchData.departureDate
-  });
-
-  const returnFlights = searchData.tripType === 'return' && searchData.returnDate
-    ? searchFlights({
-        ...searchData,
-        from: searchData.to,
-        to: searchData.from,
-        date: searchData.returnDate
-      })
-    : [];
-
+  // The flights come from the parent component's API call
+  
   const handleOutboundDateClick = () => {
     if (selectedOutboundFlight) {
       onFlightSelect(selectedOutboundFlight, false);
@@ -71,9 +58,10 @@ export function FlightSearch({
           onClick={handleOutboundDateClick}
         />
         
+        {/* This will be populated with API data now */}
         <div className="space-y-4">
-          {outboundFlights.length > 0 ? (
-            outboundFlights.map(flight => (
+          {searchData.outboundFlights && searchData.outboundFlights.length > 0 ? (
+            searchData.outboundFlights.map(flight => (
               <FlightCard
                 key={flight.id}
                 flight={flight}
@@ -120,9 +108,10 @@ export function FlightSearch({
             onClick={handleReturnDateClick}
           />
           
+          {/* This will be populated with API data now */}
           <div className="space-y-4">
-            {returnFlights.length > 0 ? (
-              returnFlights.map(flight => (
+            {searchData.returnFlights && searchData.returnFlights.length > 0 ? (
+              searchData.returnFlights.map(flight => (
                 <FlightCard
                   key={flight.id}
                   flight={flight}

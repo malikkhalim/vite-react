@@ -35,6 +35,7 @@ export interface PassengerCount {
 }
 
 export interface BookingFormData {
+  outboundFlights: boolean;
   from: AirportCode;
   to: AirportCode;
   departureDate: string;

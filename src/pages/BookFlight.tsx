@@ -8,7 +8,6 @@ import { PaymentForm } from '../components/payment/PaymentForm';
 import BookingConfirmation from '../components/booking/BookingConfirmation';
 import { BackButton } from '../components/ui/BackButton';
 import { useBookingFlow } from '../hooks/useBookingFlow';
-import { SoapClient } from '../services/aerodili/client/soap-client';
 
 export default function BookFlight() {
   const {
@@ -32,19 +31,6 @@ export default function BookFlight() {
 
   const handlePaymentSuccess = () => {
     processPayment({ /* payment details */ });
-  };
-
-  const debugAPI = async () => {
-    try {
-      const result = await SoapClient.execute('WsRouteOperate', {});
-      console.log("Debug API result:", result);
-      
-      if (!result.success) {
-        console.error("API Error:", result.error);
-      }
-    } catch (error) {
-      console.error("Debug API error:", error);
-    }
   };
 
   return (
@@ -105,7 +91,15 @@ export default function BookFlight() {
           {step === 5 && selectedFlight && ticketIssued && (
             <BookingConfirmation
               flight={selectedFlight}
-              bookingCode={bookingCode || ""}
+              bookingData={{
+                passengers: [], // Will be populated in the real component
+                contactDetails: {
+                  contactName: "",
+                  contactEmail: "",
+                  contactPhone: ""
+                },
+                totalAmount: 0 // Will be calculated in the real component
+              }}
               onClose={resetBooking}
             />
           )}

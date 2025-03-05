@@ -1,7 +1,7 @@
 import { format } from 'date-fns';
 import { SoapClient } from '../client/soap-client';
-import type { BookingFormData, Flight } from '../../../types/flight';
-import { routes } from '../../../data/flights/routes';
+import type { BookingFormData, Flight, FlightClass } from '../../../types/flight';
+import type { AirportCode } from '../../../types/airport';
 
 export class FlightSearchAdapter {
   static async searchFlights(formData: BookingFormData) {
@@ -36,16 +36,16 @@ export class FlightSearchAdapter {
       const searchKey = response.data.SearchKey;
       
       // Process outbound flights
-      const outboundTripDetail = response.data.TripDetail.find(
+      const outboundTripDetail = response.data.TripDetail?.find(
         (trip: any) => trip.Category === 'Departure'
       );
       
-      const outboundFlights = this.processTripDetail(outboundTripDetail, searchKey);
+      const outboundFlights = outboundTripDetail ? this.processTripDetail(outboundTripDetail, searchKey) : [];
       
       // Process return flights if needed
       let returnFlights: Flight[] = [];
       if (formData.tripType === 'return') {
-        const returnTripDetail = response.data.TripDetail.find(
+        const returnTripDetail = response.data.TripDetail?.find(
           (trip: any) => trip.Category === 'Return'
         );
         
@@ -70,14 +70,22 @@ export class FlightSearchAdapter {
     }
     
     return tripDetail.FlightRoute.map((route: any) => {
+      if (!route.Segments || !route.Segments.length || !route.ClassesAvailable || !route.ClassesAvailable.length) {
+        return null;
+      }
+      
       // Find available class options
-      const classOptions = route.ClassesAvailable[0].filter(
+      const classOptions = route.ClassesAvailable.filter(
         (classOption: any) => classOption.SeatAvail === 'OPEN'
       );
       
+      if (classOptions.length === 0) {
+        return null;
+      }
+      
       // Prioritize economy and business class options
       const economyClass = classOptions.find(
-        (option: any) => ['X', 'V', 'M', 'L', 'K', 'Q', 'T', 'N'].includes(option.Class)
+        (option: any) => ['Q', 'V', 'M', 'L', 'K', 'T', 'N'].includes(option.Class)
       ) || classOptions[0];
       
       const businessClass = classOptions.find(
@@ -88,96 +96,159 @@ export class FlightSearchAdapter {
       const segment = route.Segments[0];
       const flightId = `${segment.CarrierCode}${segment.NoFlight}`;
       
-      // Extract baggage information
-      const extractBaggageInfo = (fBag: any[]) => {
-        const baggageInfo: {[key: string]: number} = {};
-        fBag.forEach(bag => {
-          baggageInfo[bag.Class] = parseInt(bag.Amount.replace('Kg', ''), 10);
-        });
-        return baggageInfo;
-      };
+      // Parse dates
+      const departureDate = this.parseDate(route.Std);
+      const arrivalDate = this.parseDate(route.Sta);
       
-      // Detailed price calculation
-      const calculateDetailedPrice = (priceDetail: any) => {
-        if (!priceDetail || !priceDetail.item) return 0;
-        
-        const adultPriceDetail = priceDetail.item.find(
-          (detail: any) => detail.PaxCategory === 'ADT'
-        );
-        
-        if (!adultPriceDetail) return 0;
-        
-        // Sum up relevant fare components
-        const basicFare = parseFloat(
-          adultPriceDetail.FareComponent.find(
-            (component: any) => component.FareChargeTypeCode === 'BF'
-          )?.Amount || '0'
-        );
-        
-        const pscFee = parseFloat(
-          adultPriceDetail.FareComponent.find(
-            (component: any) => component.FareChargeTypeCode === 'PSC'
-          )?.Amount || '0'
-        );
-        
-        return basicFare + pscFee;
-      };
+      // Calculate duration in minutes
+      const duration = route.FlightTime ? parseInt(route.FlightTime, 10) : 
+        this.calculateDuration(departureDate, arrivalDate);
+      
+      // Extract baggage information
+      const baggageInfo = this.extractBaggageInfo(segment.FBag || []);
       
       return {
         id: flightId,
-        from: route.CityFrom,
-        to: route.CityTo,
-        departureDate: route.Std,
-        arrivalDate: route.Sta,
-        flightNumber: `${segment.CarrierCode}${segment.NoFlight}`,
-        carrier: segment.CarrierCode,
-        duration: parseInt(route.FlightTime || '120', 10),
-        aircraft: segment.Aircraft || 'Airbus A320',
+        from: route.CityFrom as AirportCode,
+        to: route.CityTo as AirportCode,
+        departureDate: departureDate.toISOString(),
+        arrivalDate: arrivalDate.toISOString(),
+        duration: duration,
+        aircraft: segment.Aircraft || `${segment.CarrierCode} ${segment.NoFlight}`,
         
         // Pricing details
-        price: calculateDetailedPrice(economyClass?.PriceDetail),
-        priceDetails: {
-          total: parseFloat(economyClass?.Price || '0'),
-          basicFare: calculateDetailedPrice(economyClass?.PriceDetail),
-          currency: economyClass?.Currency || 'USD'
-        },
-        
-        businessPrice: calculateDetailedPrice(businessClass?.PriceDetail),
-        businessPriceDetails: {
-          total: parseFloat(businessClass?.Price || '0'),
-          basicFare: calculateDetailedPrice(businessClass?.PriceDetail),
-          currency: businessClass?.Currency || 'USD'
-        },
+        price: this.extractPrice(economyClass),
+        businessPrice: this.extractPrice(businessClass),
         
         // Seat availability
-        seatsAvailable: parseInt(economyClass?.Availability || '0', 10),
-        businessSeatsAvailable: parseInt(businessClass?.Availability || '0', 10),
+        seatsAvailable: parseInt(economyClass.Availability || '0', 10),
+        businessSeatsAvailable: parseInt(businessClass.Availability || '0', 10),
         
         // Baggage information
         baggage: {
-          economy: extractBaggageInfo(segment.FBag || [])
+          economy: baggageInfo.economy || 20,
+          business: baggageInfo.business || 30
         },
         
-        // Additional flight details
-        departureStation: segment.DepartureStation,
-        arrivalStation: segment.ArrivalStation,
+        // Service information
+        services: {
+          economy: [
+            'Complimentary snacks and beverages',
+            'In-flight entertainment',
+            'Free baggage allowance'
+          ],
+          business: [
+            'Priority boarding',
+            'Premium meals and beverages',
+            'Extra legroom',
+            'Priority baggage handling'
+          ]
+        },
         
         // Search and booking details
         searchKey: searchKey,
-        classKey: economyClass?.Key || '',
-        seatAvailabilityStatus: {
-          economy: economyClass?.SeatAvail || 'CLOSE',
-          business: businessClass?.SeatAvail || 'CLOSE'
-        },
-        
-        // Additional metadata
-        classAvailable: classOptions.map(option => ({
-          class: option.Class,
-          availability: option.Availability,
-          seatAvail: option.SeatAvail,
-          price: option.Price
-        }))
+        classKey: economyClass.Key || ''
       };
-    });
+    }).filter(Boolean) as Flight[];
+  }
+  
+  private static parseDate(dateString: string): Date {
+    try {
+      // Format: "06-MAR-25 07.00.00 PM"
+      const [datePart, timePart] = dateString.split(' ');
+      const [day, month, year] = datePart.split('-');
+      
+      // Parse time in 12-hour format with AM/PM
+      const [hourMin, ampm] = timePart.split(' ');
+      let [hours, minutes] = hourMin.split('.');
+      
+      // Convert to 24-hour format
+      let hour = parseInt(hours, 10);
+      if (ampm === 'PM' && hour < 12) hour += 12;
+      if (ampm === 'AM' && hour === 12) hour = 0;
+      
+      // Map month abbreviation to month number
+      const months: Record<string, number> = {
+        'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'MAY': 4, 'JUN': 5,
+        'JUL': 6, 'AUG': 7, 'SEP': 8, 'OCT': 9, 'NOV': 10, 'DEC': 11
+      };
+      
+      return new Date(
+        parseInt(`20${year}`, 10),
+        months[month],
+        parseInt(day, 10),
+        hour,
+        parseInt(minutes, 10)
+      );
+    } catch (e) {
+      console.error('Error parsing date:', dateString, e);
+      return new Date();
+    }
+  }
+  
+  private static calculateDuration(departure: Date, arrival: Date): number {
+    return Math.round((arrival.getTime() - departure.getTime()) / (1000 * 60));
+  }
+  
+  private static extractBaggageInfo(fBagItems: any[]): { economy: number, business: number } {
+    const result = { economy: 20, business: 30 };
+    
+    if (!fBagItems || !fBagItems.length) return result;
+    
+    // Economy class typical codes: Q, V, T, M, N, K, L
+    // Business class typical codes: Y, S, C, D, I
+    
+    // Find economy class baggage
+    const economyBag = fBagItems.find(bag => 
+      ['Q', 'V', 'T', 'M', 'N', 'K', 'L'].includes(bag.Class)
+    );
+    
+    // Find business class baggage
+    const businessBag = fBagItems.find(bag => 
+      ['Y', 'S', 'C', 'D', 'I'].includes(bag.Class)
+    );
+    
+    if (economyBag && economyBag.Amount) {
+      result.economy = parseInt(economyBag.Amount.replace('Kg', ''), 10);
+    }
+    
+    if (businessBag && businessBag.Amount) {
+      result.business = parseInt(businessBag.Amount.replace('Kg', ''), 10);
+    }
+    
+    return result;
+  }
+  
+  private static extractPrice(classOption: any): number {
+    if (!classOption) return 0;
+    
+    // If Price is directly available
+    if (classOption.Price) {
+      return parseFloat(classOption.Price);
+    }
+    
+    // Try to extract from price details
+    if (classOption.PriceDetail && classOption.PriceDetail.length > 0) {
+      const adultPrice = classOption.PriceDetail.find(
+        (detail: any) => detail.PaxCategory === 'ADT'
+      );
+      
+      if (adultPrice && adultPrice.Total_1) {
+        return parseFloat(adultPrice.Total_1);
+      }
+      
+      // Try to extract from fare components
+      if (adultPrice && adultPrice.FareComponent && adultPrice.FareComponent.length > 0) {
+        const basicFare = adultPrice.FareComponent.find(
+          (component: any) => component.FareChargeTypeCode === 'BF'
+        );
+        
+        if (basicFare && basicFare.Amount) {
+          return parseFloat(basicFare.Amount);
+        }
+      }
+    }
+    
+    return 0;
   }
 }

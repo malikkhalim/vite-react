@@ -38,13 +38,15 @@ export function useBookingFlow() {
     setError(null);
     
     try {
-      // Call the actual API here
+      // Call the actual API
       const results = await FlightSearchAdapter.searchFlights(formData);
       
+      // Set flights from API results
       setFlights({
         outbound: results.outboundFlights || [],
         return: results.returnFlights || []
       });
+      
       setSearchData(formData);
       setStep(2);
     } catch (err) {
@@ -77,19 +79,40 @@ export function useBookingFlow() {
   }, [searchData?.tripType, selectedFlight, selectedReturnFlight]);
 
   // Handle date changes for flight search
-  const handleDateChange = useCallback((date: string, isReturn: boolean = false) => {
+  const handleDateChange = useCallback(async (date: string, isReturn: boolean = false) => {
     if (!searchData) return;
     
-    if (isReturn) {
-      setSearchData({
+    setLoading(true);
+    
+    try {
+      const updatedSearchData = {
         ...searchData,
-        returnDate: date
-      });
-    } else {
-      setSearchData({
-        ...searchData,
-        departureDate: date
-      });
+        [isReturn ? 'returnDate' : 'departureDate']: date
+      };
+      
+      // Make a new search with the updated date
+      const results = await FlightSearchAdapter.searchFlights(updatedSearchData);
+      
+      // Update flights and search data
+      setFlights(prev => ({
+        ...prev,
+        [isReturn ? 'return' : 'outbound']: results[isReturn ? 'returnFlights' : 'outboundFlights'] || []
+      }));
+      
+      setSearchData(updatedSearchData);
+      
+      // Clear selected flight if date changes
+      if (isReturn) {
+        setSelectedReturnFlight(null);
+      } else {
+        setSelectedFlight(null);
+      }
+      
+    } catch (err) {
+      console.error("Flight search error:", err);
+      setError(err instanceof Error ? err.message : 'Flight search failed');
+    } finally {
+      setLoading(false);
     }
   }, [searchData]);
 
