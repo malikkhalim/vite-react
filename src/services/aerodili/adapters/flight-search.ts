@@ -22,6 +22,8 @@ export class FlightSearchAdapter {
         Infant: formData.passengers.infant.toString()
       };
 
+      console.log(requestData.DepartDate)
+
       const response = await SoapClient.execute(
         'WsSearchFlight',
         requestData
