@@ -21,8 +21,8 @@ export class PNRAdapter {
       const childPassengers = passengers.filter(p => p.type === 'child');
       const infantPassengers = passengers.filter(p => p.type === 'infant');
       
-      // Create a direct XML envelope - no JSON transformation
-      const envelope = this.createDirectPNREnvelope(
+      // Create the exact SOAP envelope structure
+      const envelope = this.createPnrEnvelope(
         adultPassengers,
         childPassengers,
         infantPassengers,
@@ -31,9 +31,9 @@ export class PNRAdapter {
         returnFlight
       );
       
-      console.log("PNR raw envelope:", envelope);
+      console.log("PNR envelope:", envelope);
       
-      // Send directly to the proxy
+      // Send the SOAP request via our proxy
       const response = await fetch('/api/soap-proxy', {
         method: 'POST',
         headers: {
@@ -46,22 +46,19 @@ export class PNRAdapter {
       });
       
       if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
+        throw new Error(`HTTP error: ${response.status}`);
       }
       
       const result = await response.json();
       
-      console.log("PNR API result:", result);
+      console.log("PNR response:", result);
       
       if (!result.success) {
         throw new Error(result.error?.message || 'PNR generation failed');
       }
       
-      // Extract booking details
-      const data = result.data;
-      const bookingCode = data?.BookingCode || '';
-      
-      // Check if we have a booking code
+      // Extract booking details from response
+      const bookingCode = result.data?.BookingCode;
       if (!bookingCode) {
         throw new Error('No booking code returned from API');
       }
@@ -69,7 +66,7 @@ export class PNRAdapter {
       return {
         bookingCode,
         status: 'pending',
-        totalAmount: 0 // We'll get this in a later step
+        totalAmount: 0
       };
     } catch (error) {
       console.error("PNR generation error:", error);
@@ -77,7 +74,7 @@ export class PNRAdapter {
     }
   }
   
-  private static createDirectPNREnvelope(
+  private static createPnrEnvelope(
     adults: PassengerData[],
     children: PassengerData[],
     infants: PassengerData[],
@@ -85,96 +82,137 @@ export class PNRAdapter {
     flight: Flight,
     returnFlight?: Flight
   ): string {
-    // Format adult passenger XML
-    const adultXML = adults.map((adult, index) => {
-      return `<item>
-        <FirstName>${adult.firstName.toUpperCase()}</FirstName>
-        <LastName>${adult.lastName.toUpperCase()}</LastName>
-        <Suffix>${adult.salutation}</Suffix>
-        <Dob>-</Dob>
-        <IdNo>${adult.passportNumber}</IdNo>
-        <Passport>
-          <item>
-            <PassportNumber>${adult.passportNumber}</PassportNumber>
-            <ExpiryDate>${format(new Date(adult.passportExpiry), 'dd-MMM-yy')}</ExpiryDate>
-            <IssuingCountry>?</IssuingCountry>
-            <IssuingDate>?</IssuingDate>
-          </item>
-        </Passport>
-      </item>`;
-    }).join('');
-    
-    // Format child passenger XML
-    const childXML = children.map((child, index) => {
-      return `<item>
-        <FirstName>${child.firstName.toUpperCase()}</FirstName>
-        <LastName>${child.lastName.toUpperCase()}</LastName>
-        <Suffix>${child.salutation}</Suffix>
-        <Dob>${format(new Date(child.dateOfBirth), 'yyyy-MM-dd')}</Dob>
-        <IdNo>${child.passportNumber}</IdNo>
-        <Passport>
-          <item>
-            <PassportNumber>${child.passportNumber}</PassportNumber>
-            <ExpiryDate>${format(new Date(child.passportExpiry), 'dd-MMM-yy')}</ExpiryDate>
-            <IssuingCountry>?</IssuingCountry>
-            <IssuingDate>?</IssuingDate>
-          </item>
-        </Passport>
-      </item>`;
-    }).join('');
-    
-    // Format infant passenger XML
-    const infantXML = infants.map((infant, index) => {
-      return `<item>
-        <FirstName>${infant.firstName.toUpperCase()}</FirstName>
-        <LastName>${infant.lastName.toUpperCase()}</LastName>
-        <Dob>${format(new Date(infant.dateOfBirth), 'yyyy-MM-dd')}</Dob>
-        <AdultRefference>1</AdultRefference>
-        <Passport>
-          <item>
-            <PassportNumber>${infant.passportNumber}</PassportNumber>
-            <ExpiryDate>${format(new Date(infant.passportExpiry), 'dd-MMM-yy')}</ExpiryDate>
-            <IssuingCountry>?</IssuingCountry>
-            <IssuingDate>?</IssuingDate>
-          </item>
-        </Passport>
-      </item>`;
-    }).join('');
-    
-    // Format keys XML
-    let keysXML = `<item>
-      <Key>${flight.classKey}</Key>
-      <Category>Departure</Category>
-    </item>`;
-    
-    if (returnFlight && returnFlight.classKey) {
-      keysXML += `<item>
-        <Key>${returnFlight.classKey}</Key>
-        <Category>Return</Category>
-      </item>`;
+    // First handle the Adult array
+    let adultNames = '';
+    if (adults.length > 0) {
+      const adultItems = adults.map(adult => {
+        return `
+        <item xsi:type="tns:InputReqNameArray">
+          <FirstName xsi:type="xsd:string">${adult.firstName.toUpperCase()}</FirstName>
+          <LastName xsi:type="xsd:string">${adult.lastName.toUpperCase()}</LastName>
+          <Suffix xsi:type="xsd:string">${adult.salutation}</Suffix>
+          <Dob xsi:type="xsd:string">-</Dob>
+          <IdNo xsi:type="xsd:string">${adult.passportNumber}</IdNo>
+          <Passport xsi:type="urn:PassportArray" soapenc:arrayType="urn:InputPassportArray[1]">
+            <item xsi:type="tns:InputPassportArray">
+              <PassportNumber xsi:type="xsd:string">${adult.passportNumber}</PassportNumber>
+              <ExpiryDate xsi:type="xsd:string">${format(new Date(adult.passportExpiry), 'dd-MMM-yy')}</ExpiryDate>
+              <IssuingCountry xsi:type="xsd:string">${adult.country || '?'}</IssuingCountry>
+              <IssuingDate xsi:type="xsd:string">?</IssuingDate>
+            </item>
+          </Passport>
+        </item>`;
+      }).join('');
+      
+      adultNames = `<AdultNames xsi:type="urn:AdultNamesArray" soapenc:arrayType="urn:InputReqNameArray[${adults.length}]">
+        ${adultItems}
+      </AdultNames>`;
+    } else {
+      adultNames = `<AdultNames xsi:type="urn:AdultNamesArray" soapenc:arrayType="urn:InputReqNameArray[0]"></AdultNames>`;
     }
     
-    // Create the full envelope with plain XML - no type attributes or namespaces
-    // This simplification might help avoid the complex SOAP structure issues
+    // Then handle the Child array
+    let childNames = '';
+    if (children.length > 0) {
+      const childItems = children.map(child => {
+        return `
+        <item xsi:type="tns:InputReqNameArray">
+          <FirstName xsi:type="xsd:string">${child.firstName.toUpperCase()}</FirstName>
+          <LastName xsi:type="xsd:string">${child.lastName.toUpperCase()}</LastName>
+          <Suffix xsi:type="xsd:string">${child.salutation}</Suffix>
+          <Dob xsi:type="xsd:string">${format(new Date(child.dateOfBirth), 'yyyy-MM-dd')}</Dob>
+          <IdNo xsi:type="xsd:string">${child.passportNumber}</IdNo>
+          <Passport xsi:type="urn:PassportArray" soapenc:arrayType="urn:InputPassportArray[1]">
+            <item xsi:type="tns:InputPassportArray">
+              <PassportNumber xsi:type="xsd:string">${child.passportNumber}</PassportNumber>
+              <ExpiryDate xsi:type="xsd:string">${format(new Date(child.passportExpiry), 'dd-MMM-yy')}</ExpiryDate>
+              <IssuingCountry xsi:type="xsd:string">${child.country || '?'}</IssuingCountry>
+              <IssuingDate xsi:type="xsd:string">?</IssuingDate>
+            </item>
+          </Passport>
+        </item>`;
+      }).join('');
+      
+      childNames = `<ChildNames xsi:type="urn:ChildNamesArray" soapenc:arrayType="urn:InputReqNameArray[${children.length}]">
+        ${childItems}
+      </ChildNames>`;
+    } else {
+      childNames = `<ChildNames xsi:type="urn:ChildNamesArray" soapenc:arrayType="urn:InputReqNameArray[0]"></ChildNames>`;
+    }
+    
+    // Then handle the Infant array
+    let infantNames = '';
+    if (infants.length > 0) {
+      const infantItems = infants.map((infant, index) => {
+        return `
+        <item xsi:type="tns:InputReqArrayInf">
+          <FirstName xsi:type="xsd:string">${infant.firstName.toUpperCase()}</FirstName>
+          <LastName xsi:type="xsd:string">${infant.lastName.toUpperCase()}</LastName>
+          <Dob xsi:type="xsd:string">${format(new Date(infant.dateOfBirth), 'yyyy-MM-dd')}</Dob>
+          <AdultRefference xsi:type="xsd:string">${index + 1}</AdultRefference>
+          <Passport xsi:type="urn:PassportArray" soapenc:arrayType="urn:InputPassportArray[1]">
+            <item xsi:type="tns:InputPassportArray">
+              <PassportNumber xsi:type="xsd:string">${infant.passportNumber}</PassportNumber>
+              <ExpiryDate xsi:type="xsd:string">${format(new Date(infant.passportExpiry), 'dd-MMM-yy')}</ExpiryDate>
+              <IssuingCountry xsi:type="xsd:string">${infant.country || '?'}</IssuingCountry>
+              <IssuingDate xsi:type="xsd:string">?</IssuingDate>
+            </item>
+          </Passport>
+        </item>`;
+      }).join('');
+      
+      infantNames = `<InfantNames xsi:type="urn:InfantNamesArray" soapenc:arrayType="urn:InputReqArrayInf[${infants.length}]">
+        ${infantItems}
+      </InfantNames>`;
+    } else {
+      infantNames = `<InfantNames xsi:type="urn:InfantNamesArray" soapenc:arrayType="urn:InputReqArrayInf[0]"></InfantNames>`;
+    }
+    
+    // Handle Keys array
+    let keys = '';
+    if (returnFlight && returnFlight.classKey) {
+      keys = `<Keys xsi:type="urn:InputReqArrayKey" soapenc:arrayType="urn:InputReqArrayKeys[2]">
+        <item xsi:type="tns:InputReqArrayKeys">
+          <Key xsi:type="xsd:string">${flight.classKey}</Key>
+          <Category xsi:type="xsd:string">Departure</Category>
+        </item>
+        <item xsi:type="tns:InputReqArrayKeys">
+          <Key xsi:type="xsd:string">${returnFlight.classKey}</Key>
+          <Category xsi:type="xsd:string">Return</Category>
+        </item>
+      </Keys>`;
+    } else {
+      keys = `<Keys xsi:type="urn:InputReqArrayKey" soapenc:arrayType="urn:InputReqArrayKeys[1]">
+        <item xsi:type="tns:InputReqArrayKeys">
+          <Key xsi:type="xsd:string">${flight.classKey}</Key>
+          <Category xsi:type="xsd:string">Departure</Category>
+        </item>
+      </Keys>`;
+    }
+    
+    // Create the complete SOAP envelope
     return `<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope 
-  xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
-  xmlns:urn="urn:sj_service">
+<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+  xmlns:urn="urn:sj_service"
+  xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/"
+  xmlns:tns="urn:webservice">
   <soapenv:Header/>
   <soapenv:Body>
-    <urn:WsGeneratePNR>
-      <param>
-        <Username>DILTRAVEL002</Username>
-        <Password>Abc12345</Password>
-        <Received>AGENT</Received>
-        <ReceivedPhone>${contactDetails.phone || ''}</ReceivedPhone>
-        <Email>${contactDetails.email.toUpperCase()}</Email>
-        <SearchKey>${flight.searchKey}</SearchKey>
-        <ExtraCoverAddOns>?</ExtraCoverAddOns>
-        <AdultNames>${adultXML}</AdultNames>
-        <ChildNames>${childXML}</ChildNames>
-        <InfantNames>${infantXML}</InfantNames>
-        <Keys>${keysXML}</Keys>
+    <urn:WsGeneratePNR soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+      <param xsi:type="urn:reqWsGeneratePNR">
+        <Username xsi:type="xsd:string">DILTRAVEL002</Username>
+        <Password xsi:type="xsd:string">Abc12345</Password>
+        <Received xsi:type="xsd:string">AGENT</Received>
+        <ReceivedPhone xsi:type="xsd:string">${contactDetails.phone || '01234562'}</ReceivedPhone>
+        <Email xsi:type="xsd:string">${contactDetails.email.toUpperCase()}</Email>
+        <SearchKey xsi:type="xsd:string">${flight.searchKey}</SearchKey>
+        <ExtraCoverAddOns xsi:type="xsd:string">?</ExtraCoverAddOns>
+        ${adultNames}
+        ${childNames}
+        ${infantNames}
+        ${keys}
       </param>
     </urn:WsGeneratePNR>
   </soapenv:Body>

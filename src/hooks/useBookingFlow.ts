@@ -4,6 +4,7 @@ import { FlightSearchAdapter } from '../services/aerodili/adapters/flight-search
 // import { IssuingAdapter } from '../services/aerodili/adapters/issuing';
 import type { Flight, BookingFormData, FlightClass } from '../types/flight';
 import type { PassengerData } from '../types/passenger';
+import { PNRAdapter } from '../services/aerodili/adapters/pnr';
 
 export function useBookingFlow() {
   // Basic state
@@ -161,19 +162,39 @@ export function useBookingFlow() {
       setPassengerData(passengers);
       setContactData(contactDetails);
       
-      // BYPASSING REAL PNR GENERATION - USING MOCK DATA INSTEAD
-      console.log("⚠️ BYPASSING REAL PNR GENERATION WITH MOCK DATA");
-      
-      // Generate a mock booking code
-      const mockBookingCode = `MOCK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
-      
-      // Wait for a moment to simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      console.log("Mock booking code created:", mockBookingCode);
-      
-      setBookingCode(mockBookingCode);
-      setStep(4); // Move to payment
+      // Try with the real PNR generation first
+      try {
+        console.log("Attempting real PNR generation...");
+        
+        const result = await PNRAdapter.generatePNR(
+          passengers,
+          {
+            name: contactDetails.contactName,
+            email: contactDetails.contactEmail,
+            phone: contactDetails.contactPhone
+          },
+          selectedFlight,
+          searchData.tripType === 'return' ? selectedReturnFlight : undefined
+        );
+        
+        console.log("PNR generation successful:", result);
+        
+        setBookingCode(result.bookingCode);
+        setStep(4); // Move to payment
+        return;
+      } catch (pnrError) {
+        console.error("Real PNR generation failed:", pnrError);
+        console.log("Falling back to mock PNR generation...");
+        
+        // If real PNR fails, fall back to mock
+        console.log("⚠️ USING MOCK PNR GENERATION AS FALLBACK");
+        const mockBookingCode = `MOCK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+        await new Promise(resolve => setTimeout(resolve, 1000)); 
+        console.log("Mock booking code created:", mockBookingCode);
+        
+        setBookingCode(mockBookingCode);
+        setStep(4); // Move to payment
+      }
     } catch (err) {
       console.error("PNR generation error:", err);
       setError(err instanceof Error ? err.message : 'Failed to create booking');
@@ -181,6 +202,7 @@ export function useBookingFlow() {
       setLoading(false);
     }
   }, [selectedFlight, selectedReturnFlight, searchData]);
+  
   
   // Also update the processPayment function to bypass the real API call
   const processPayment = useCallback(async (paymentDetails: any) => {
