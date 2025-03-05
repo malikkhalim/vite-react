@@ -200,7 +200,7 @@ export function useBookingFlow() {
       
       if (!result.bookingCode) {
         throw new Error("No booking code returned");
-      }
+      } 
       
       setBookingCode(result.bookingCode);
       setStep(4); // Move to payment
