@@ -15,6 +15,13 @@ export class PNRAdapter {
   ) {
     try {
       console.log("Generating PNR with:", { passengers, contactDetails, flight, returnFlight });
+
+      if (!flight.searchKey) {
+        console.error("Missing search key on flight object:", flight);
+        throw new Error('Missing search key for flight');
+      }
+      
+      console.log("Using search key:", flight.searchKey);
       
       // Filter passengers by type
       const adultPassengers = passengers.filter(p => p.type === 'adult');
