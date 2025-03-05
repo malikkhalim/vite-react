@@ -1,5 +1,3 @@
-// src/hooks/useBookingFlow.ts
-
 import { useState, useCallback } from 'react';
 import { FlightSearchAdapter } from '../services/aerodili/adapters/flight-search';
 import { PNRAdapter } from '../services/aerodili/adapters/pnr';
