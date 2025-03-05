@@ -18,6 +18,7 @@ interface PassengerData {
   dateOfBirth: string;
   passportNumber: string;
   passportExpiry: string;
+  country: string; 
 }
 
 interface ContactData {
@@ -41,6 +42,7 @@ export default function PassengerForm({ flight, passengerCount, onSubmit }: Pass
         dateOfBirth: '',
         passportNumber: '',
         passportExpiry: '',
+        country: '', 
       });
     }
     
@@ -54,6 +56,7 @@ export default function PassengerForm({ flight, passengerCount, onSubmit }: Pass
         dateOfBirth: '',
         passportNumber: '',
         passportExpiry: '',
+        country: '', 
       });
     }
     
@@ -67,6 +70,7 @@ export default function PassengerForm({ flight, passengerCount, onSubmit }: Pass
         dateOfBirth: '',
         passportNumber: '',
         passportExpiry: '',
+        country: '', 
       });
     }
     

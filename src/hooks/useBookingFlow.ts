@@ -143,10 +143,7 @@ export function useBookingFlow() {
   }, [searchData]);
 
   // Step 3: Submit Passenger Details
-  const submitPassengerDetails = useCallback(async (
-    passengers: PassengerData[],
-    contactDetails: { contactName: string; contactEmail: string; contactPhone: string }
-  ) => {
+  const submitPassengerDetails = useCallback(async (data: any) => {
     if (!selectedFlight || !searchData) {
       setError("No flight selected. Please select a flight before continuing.");
       return;
@@ -156,7 +153,9 @@ export function useBookingFlow() {
     setError(null);
     
     try {
-      console.log("Submitting passenger details:", passengers, contactDetails);
+      console.log("Submitting passenger details:", data);
+      
+      const { passengers, contactDetails } = data;
       
       // Save data in state
       setPassengerData(passengers);
