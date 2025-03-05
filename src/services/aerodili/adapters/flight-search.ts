@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import { SoapClient } from '../client/soap-client';
 import type { BookingFormData, Flight } from '../../../types/flight';
+import { routes } from '../../../data/flights/routes';
 
 export class FlightSearchAdapter {
   static async searchFlights(formData: BookingFormData) {
@@ -87,6 +88,11 @@ export class FlightSearchAdapter {
       const segment = route.Segments[0];
       const flightId = `${segment.CarrierCode}${segment.NoFlight}`;
       
+      // Find the base route configuration
+      const routeConfig = routes.find(
+        r => r.from === route.CityFrom && r.to === route.CityTo
+      );
+      
       return {
         id: flightId,
         from: route.CityFrom,
@@ -94,9 +100,11 @@ export class FlightSearchAdapter {
         departureDate: route.Std,
         arrivalDate: route.Sta,
         duration: parseInt(route.FlightTime || '120', 10),
-        aircraft: 'Airbus A320', // Default
-        price: economyClass ? parseFloat(economyClass.Price) : 0,
-        businessPrice: businessClass ? parseFloat(businessClass.Price) : 0,
+        aircraft: segment.Aircraft || 'Airbus A320',
+        price: economyClass ? parseFloat(economyClass.Price) : (routeConfig?.basePrice || 0),
+        businessPrice: businessClass 
+          ? parseFloat(businessClass.Price) 
+          : (routeConfig ? routeConfig.basePrice * routeConfig.businessMultiplier : 0),
         seatsAvailable: economyClass ? parseInt(economyClass.Availability, 10) : 0,
         businessSeatsAvailable: businessClass ? parseInt(businessClass.Availability, 10) : 0,
         baggage: {
