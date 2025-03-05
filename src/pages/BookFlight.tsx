@@ -12,21 +12,25 @@ import { useBookingFlow } from '../hooks/useBookingFlow';
 export default function BookFlight() {
   const {
     step,
+    loading,
+    error,
     searchData,
+    flights,
     selectedFlight,
     selectedReturnFlight,
-    bookingData,
-    handleSearch,
-    handleFlightSelect,
-    handlePassengerSubmit,
-    handlePaymentSubmit,
-    handleBookingComplete,
+    bookingCode,
+    ticketIssued,
+    searchFlights,
+    selectFlight,
+    submitPassengerDetails,
+    processPayment,
+    resetBooking,
     handleDateChange,
-    goBack,
+    goBack
   } = useBookingFlow();
 
   const handlePaymentSuccess = () => {
-    handlePaymentSubmit();
+    processPayment({ /* payment details */ });
   };
 
   return (
@@ -38,48 +42,61 @@ export default function BookFlight() {
 
       <BookingProgress currentStep={step} />
 
-      <div className="mt-8">
-        {step === 1 && (
-          <FlightSearchForm onSearch={handleSearch} />
-        )}
+      {loading && (
+        <div className="bg-white p-8 rounded-lg shadow-md text-center mt-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Processing your request...</p>
+        </div>
+      )}
 
-        {step === 2 && searchData && (
-          <FlightSearch
-            searchData={searchData}
-            selectedClass={searchData.class}
-            onDateChange={handleDateChange}
-            onFlightSelect={handleFlightSelect}
-            selectedOutboundFlight={selectedFlight}
-            selectedReturnFlight={selectedReturnFlight}
-          />
-        )}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md mt-4 mb-4">
+          {error}
+        </div>
+      )}
 
-        {step === 3 && selectedFlight && searchData && (
-          <PassengerForm
-            flight={selectedFlight}
-            passengerCount={searchData.passengers}
-            onSubmit={handlePassengerSubmit}
-          />
-        )}
+      {!loading && (
+        <div className="mt-8">
+          {step === 1 && (
+            <FlightSearchForm onSearch={searchFlights} />
+          )}
 
-        {step === 4 && selectedFlight && bookingData && (
-          <PaymentForm
-            amount={bookingData.totalAmount}
-            passengers={searchData!.passengers}
-            flightPrice={selectedFlight.price}
-            contactDetails={bookingData.contactDetails}
-            onSuccess={handlePaymentSuccess}
-          />
-        )}
+          {step === 2 && searchData && (
+            <FlightSearch
+              searchData={searchData}
+              selectedClass={searchData.class}
+              onDateChange={handleDateChange}
+              onFlightSelect={selectFlight}
+              selectedOutboundFlight={selectedFlight}
+              selectedReturnFlight={selectedReturnFlight}
+            />
+          )}
 
-        {step === 5 && selectedFlight && bookingData && (
-          <BookingConfirmation
-            flight={selectedFlight}
-            bookingData={bookingData}
-            onClose={handleBookingComplete}
-          />
-        )}
-      </div>
+          {step === 3 && selectedFlight && searchData && (
+            <PassengerForm
+              flight={selectedFlight}
+              passengerCount={searchData.passengers}
+              onSubmit={submitPassengerDetails}
+            />
+          )}
+
+          {step === 4 && selectedFlight && bookingCode && (
+            <PaymentForm
+              amount={selectedFlight.price} // Adjust calculation as needed
+              bookingCode={bookingCode}
+              onSuccess={handlePaymentSuccess}
+            />
+          )}
+
+          {step === 5 && selectedFlight && ticketIssued && (
+            <BookingConfirmation
+              flight={selectedFlight}
+              bookingCode={bookingCode || ""}
+              onClose={resetBooking}
+            />
+          )}
+        </div>
+      )}
     </Container>
   );
 }

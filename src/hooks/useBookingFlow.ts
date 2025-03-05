@@ -2,14 +2,16 @@ import { useState, useCallback } from 'react';
 import { FlightSearchAdapter } from '../services/aerodili/adapters/flight-search';
 import { PNRAdapter } from '../services/aerodili/adapters/pnr';
 import { IssuingAdapter } from '../services/aerodili/adapters/issuing';
-import { RetrievePNRAdapter } from '../services/aerodili/adapters/retrieve-pnr';
-import type { BookingFormData, Flight } from '../types/flight';
+import type { Flight, BookingFormData, FlightClass } from '../types/flight';
 import type { PassengerData } from '../types/passenger';
 
 export function useBookingFlow() {
+  // Basic state
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Data state
   const [searchData, setSearchData] = useState<BookingFormData | null>(null);
   const [flights, setFlights] = useState<{ outbound: Flight[], return: Flight[] }>({
     outbound: [],
@@ -19,28 +21,41 @@ export function useBookingFlow() {
   const [selectedReturnFlight, setSelectedReturnFlight] = useState<Flight | null>(null);
   const [bookingCode, setBookingCode] = useState<string | null>(null);
   const [ticketIssued, setTicketIssued] = useState(false);
+  const [passengerData, setPassengerData] = useState<PassengerData[]>([]);
+  const [contactData, setContactData] = useState<any>(null);
 
-  // Search flights
+  // Navigation helper
+  const goBack = useCallback(() => {
+    if (step > 1) {
+      setStep(prev => prev - 1);
+    }
+  }, [step]);
+
+  // Step 1: Search Flights
   const searchFlights = useCallback(async (formData: BookingFormData) => {
+    console.log("Searching flights with data:", formData);
     setLoading(true);
     setError(null);
     
     try {
+      // Call the actual API here
       const results = await FlightSearchAdapter.searchFlights(formData);
+      
       setFlights({
-        outbound: results.outboundFlights,
-        return: results.returnFlights
+        outbound: results.outboundFlights || [],
+        return: results.returnFlights || []
       });
       setSearchData(formData);
       setStep(2);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Search failed');
+      console.error("Flight search error:", err);
+      setError(err instanceof Error ? err.message : 'Flight search failed');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Select flight
+  // Step 2: Select Flight
   const selectFlight = useCallback((flight: Flight, isReturn: boolean = false) => {
     if (isReturn) {
       setSelectedReturnFlight(flight);
@@ -48,29 +63,57 @@ export function useBookingFlow() {
       setSelectedFlight(flight);
     }
     
-    // Move to passenger details if we have all required flights
-    if (
-      (searchData?.tripType === 'one-way' && !isReturn) || 
-      (searchData?.tripType === 'return' && ((isReturn && selectedFlight) || (!isReturn && selectedReturnFlight)))
-    ) {
-      setStep(3);
+    // Determine if we should proceed to next step
+    if (searchData?.tripType === 'one-way' && !isReturn) {
+      setStep(3); // Go to passenger details for one-way
+    } else if (searchData?.tripType === 'return') {
+      if (
+        (isReturn && selectedFlight) || // Just selected return flight & already have outbound
+        (!isReturn && selectedReturnFlight) // Just selected outbound & already have return
+      ) {
+        setStep(3); // Go to passenger details when both flights selected
+      }
     }
   }, [searchData?.tripType, selectedFlight, selectedReturnFlight]);
 
-  // Submit passenger details
+  // Handle date changes for flight search
+  const handleDateChange = useCallback((date: string, isReturn: boolean = false) => {
+    if (!searchData) return;
+    
+    if (isReturn) {
+      setSearchData({
+        ...searchData,
+        returnDate: date
+      });
+    } else {
+      setSearchData({
+        ...searchData,
+        departureDate: date
+      });
+    }
+  }, [searchData]);
+
+  // Step 3: Submit Passenger Details
   const submitPassengerDetails = useCallback(async (
     passengers: PassengerData[],
-    contactDetails: { name: string; email: string; phone: string }
+    contactDetails: { contactName: string; contactEmail: string; contactPhone: string }
   ) => {
     if (!selectedFlight || !searchData) return;
     
     setLoading(true);
     setError(null);
+    setPassengerData(passengers);
+    setContactData(contactDetails);
     
     try {
+      // Call the actual PNR generation API here
       const result = await PNRAdapter.generatePNR(
         passengers,
-        contactDetails,
+        {
+          name: contactDetails.contactName,
+          email: contactDetails.contactEmail,
+          phone: contactDetails.contactPhone
+        },
         selectedFlight,
         searchData.tripType === 'return' ? selectedReturnFlight : undefined
       );
@@ -78,13 +121,14 @@ export function useBookingFlow() {
       setBookingCode(result.bookingCode);
       setStep(4); // Move to payment
     } catch (err) {
+      console.error("PNR generation error:", err);
       setError(err instanceof Error ? err.message : 'Failed to create booking');
     } finally {
       setLoading(false);
     }
   }, [selectedFlight, selectedReturnFlight, searchData]);
 
-  // Process payment and issue ticket
+  // Step 4: Process Payment
   const processPayment = useCallback(async (paymentDetails: any) => {
     if (!bookingCode) return;
     
@@ -92,8 +136,8 @@ export function useBookingFlow() {
     setError(null);
     
     try {
-      // In a real app, you'd process payment through a payment gateway
-      // After successful payment, issue the ticket
+      // In a real implementation, you'd process payment first
+      // Then issue the ticket after payment is successful
       const result = await IssuingAdapter.issueTicket(bookingCode);
       
       if (result.success) {
@@ -103,7 +147,8 @@ export function useBookingFlow() {
         throw new Error('Ticket issuance failed');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Payment/ticketing failed');
+      console.error("Payment/ticketing error:", err);
+      setError(err instanceof Error ? err.message : 'Payment processing failed');
     } finally {
       setLoading(false);
     }
@@ -118,6 +163,8 @@ export function useBookingFlow() {
     setSelectedReturnFlight(null);
     setBookingCode(null);
     setTicketIssued(false);
+    setPassengerData([]);
+    setContactData(null);
     setError(null);
   }, []);
 
@@ -131,10 +178,14 @@ export function useBookingFlow() {
     selectedReturnFlight,
     bookingCode,
     ticketIssued,
+    passengerData,
+    contactData,
     searchFlights,
     selectFlight,
     submitPassengerDetails,
     processPayment,
-    resetBooking
+    resetBooking,
+    handleDateChange,
+    goBack
   };
 }
