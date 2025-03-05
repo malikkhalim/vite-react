@@ -54,56 +54,46 @@ export class SoapClient {
   }
 
   private static createSoapEnvelope(action: string, params: Record<string, any>): string {
-    // Process credentials
-    const allParams = {
+    // Prepare default credentials
+    const defaultParams = {
       Username: 'DILTRAVEL002',
       Password: 'Abc12345',
       ...params
     };
-
-    // Create the SOAP envelope with correct namespaces and encoding style
-    return `
-    <?xml version="1.0" encoding="UTF-8"?>
+  
+    // Prepare the XML envelope
+    return `<?xml version="1.0" encoding="UTF-8"?>
     <soapenv:Envelope 
-      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-      xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
-      xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" 
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+      xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
       xmlns:urn="urn:sj_service"
-      xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+      xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
       <soapenv:Body>
         <urn:${action} soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
           <param xsi:type="urn:req${action}">
-            ${this.formatParams(allParams)}
+            ${this.formatParams(defaultParams)}
           </param>
         </urn:${action}>
       </soapenv:Body>
-    </soapenv:Envelope>'`;
+    </soapenv:Envelope>`;
   }
-
+  
   private static formatParams(params: Record<string, any>): string {
     return Object.entries(params)
       .map(([key, value]) => {
-        if (value === undefined || value === null) {
-          return `<${key} xsi:type="xsd:string">?</${key}>`;
-        } else if (value === '') {
+        // Handle null or undefined values
+        if (value === null || value === undefined) {
           return `<${key} xsi:nil="true" xsi:type="xsd:string"/>`;
-        } else if (typeof value === 'object' && Array.isArray(value)) {
-          if (value.length === 0) {
-            return `<${key} xsi:nil="true" xsi:type="SOAP-ENC:Array"/>`;
-          }
-          // Handle arrays
-          return `<${key} xsi:type="SOAP-ENC:Array">
-            ${value.map((item) =>
-            `<item>${typeof item === 'object' ? this.formatParams(item) : item}</item>`
-          ).join('')}
-          </${key}>`;
-        } else if (typeof value === 'object') {
-          // Handle nested objects
-          return `<${key}>${this.formatParams(value)}</${key}>`;
-        } else {
-          // Handle primitive values
-          return `<${key} xsi:type="xsd:string">${value}</${key}>`;
         }
+  
+        // Handle empty strings
+        if (value === '') {
+          return `<${key} xsi:nil="true" xsi:type="xsd:string"/>`;
+        }
+  
+        // Handle primitive values
+        return `<${key} xsi:type="xsd:string">${value}</${key}>`;
       })
       .join('\n');
   }
