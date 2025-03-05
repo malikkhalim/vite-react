@@ -13,17 +13,6 @@ interface FlightSearchFormProps {
   onSearch: (data: BookingFormData) => void;
 }
 
-// Utility function to format date
-const formatDate = (dateString: string): string => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: '2-digit'
-  }).replace(/\//g, '-');
-};
-
 export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [dateErrors, setDateErrors] = useState<{
@@ -34,7 +23,7 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
   const [formData, setFormData] = useState<BookingFormData>({
     from: '' as AirportCode,
     to: '' as AirportCode,
-    departureDate: formatDate('2025-03-05'), // Pre-formatted date
+    departureDate: '',
     returnDate: '',
     passengers: {
       adult: 1,
@@ -60,22 +49,15 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
       return;
     }
 
-    // When submitting, you might want to convert back to YYYY-MM-DD format for backend
-    const submissionData = {
-      ...formData,
-      departureDate: formData.departureDate 
-        ? new Date(formData.departureDate.split('-').reverse().join('-')).toISOString().split('T')[0]
-        : ''
-    };
-
-    const dateValidationErrors = validateDates(submissionData.departureDate, submissionData.returnDate, formData.tripType);
+    const dateValidationErrors = validateDates(formData.departureDate, formData.returnDate, formData.tripType);
     if (dateValidationErrors) {
       setDateErrors(dateValidationErrors);
       return;
     }
 
+    // Make sure onSearch is a function before calling it
     if (typeof onSearch === 'function') {
-      onSearch(submissionData);
+      onSearch(formData);
     } else {
       console.error('onSearch is not a function:', onSearch);
       setError('Internal error: Search handler is not properly configured');
@@ -92,7 +74,7 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
   };
 
   const handleDateChange = (field: 'departureDate' | 'returnDate') => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newDate = formatDate(e.target.value);
+    const newDate = e.target.value;
     setFormData(prev => ({ ...prev, [field]: newDate }));
     
     // Clear date errors when user changes dates
@@ -171,4 +153,4 @@ export function FlightSearchForm({ onSearch }: FlightSearchFormProps) {
       </button>
     </form>
   );
-};
+}
