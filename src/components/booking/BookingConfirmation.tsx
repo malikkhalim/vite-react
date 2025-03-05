@@ -2,10 +2,11 @@ import React from 'react';
 import { Check } from 'lucide-react';
 import { Flight } from '../../types/flight';
 import { formatCurrency } from '../../utils/formatting';
+import { PassengerData } from '../../types/passenger';
 
 interface BookingConfirmationProps {
   flight: Flight;
-  bookingData: {
+  bookingData?: {
     passengers: any[];
     contactDetails: {
       contactName: string;
@@ -15,9 +16,24 @@ interface BookingConfirmationProps {
     totalAmount: number;
   };
   onClose: () => void;
+  passengerData?: PassengerData[];
+  contactData?: any;
 }
 
-export default function BookingConfirmation({ flight, bookingData, onClose }: BookingConfirmationProps) {
+export default function BookingConfirmation({ 
+  flight, 
+  bookingData,
+  onClose,
+  passengerData,
+  contactData
+}: BookingConfirmationProps) {
+  const passengers = bookingData?.passengers || passengerData || [];
+  const contactDetails = bookingData?.contactDetails || contactData || {
+    contactName: "Guest",
+    contactEmail: "guest@example.com",
+    contactPhone: ""
+  };
+  const totalAmount = bookingData?.totalAmount || flight.price;
   const bookingNumber = Math.random().toString(36).substring(2, 10).toUpperCase();
 
   return (
@@ -59,7 +75,7 @@ export default function BookingConfirmation({ flight, bookingData, onClose }: Bo
       <div className="mb-6">
         <h3 className="font-semibold mb-2">Passenger Details</h3>
         <div className="space-y-4">
-          {bookingData.passengers.map((passenger, index) => (
+          {passengers.map((passenger, index) => (
             <div key={index} className="bg-gray-50 p-4 rounded-lg">
               <div className="flex justify-between items-start">
                 <div>
@@ -83,9 +99,9 @@ export default function BookingConfirmation({ flight, bookingData, onClose }: Bo
       <div className="mb-6">
         <h3 className="font-semibold mb-2">Contact Details</h3>
         <div className="bg-gray-50 p-4 rounded-lg">
-          <p><span className="text-gray-600">Name:</span> {bookingData.contactDetails.contactName}</p>
-          <p><span className="text-gray-600">Email:</span> {bookingData.contactDetails.contactEmail}</p>
-          <p><span className="text-gray-600">Phone:</span> {bookingData.contactDetails.contactPhone}</p>
+          <p><span className="text-gray-600">Name:</span> {contactDetails.contactName}</p>
+          <p><span className="text-gray-600">Email:</span> {contactDetails.contactEmail}</p>
+          <p><span className="text-gray-600">Phone:</span> {contactDetails.contactPhone}</p>
         </div>
       </div>
 
@@ -93,14 +109,14 @@ export default function BookingConfirmation({ flight, bookingData, onClose }: Bo
         <h3 className="font-semibold mb-2">Payment Details</h3>
         <div className="bg-gray-50 p-4 rounded-lg">
           <p className="text-lg font-medium text-sky-600">
-            Total Amount: {formatCurrency(bookingData.totalAmount)}
+            Total Amount: {formatCurrency(totalAmount)}
           </p>
         </div>
       </div>
 
       <div className="text-center">
         <p className="text-gray-600 mb-4">
-          A confirmation email has been sent to {bookingData.contactDetails.contactEmail}
+          A confirmation email has been sent to {contactDetails.contactEmail}
         </p>
         <button
           onClick={onClose}

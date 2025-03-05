@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { FlightSearchAdapter } from '../services/aerodili/adapters/flight-search';
-import { PNRAdapter } from '../services/aerodili/adapters/pnr';
-import { IssuingAdapter } from '../services/aerodili/adapters/issuing';
+// import { PNRAdapter } from '../services/aerodili/adapters/pnr';
+// import { IssuingAdapter } from '../services/aerodili/adapters/issuing';
 import type { Flight, BookingFormData, FlightClass } from '../types/flight';
 import type { PassengerData } from '../types/passenger';
 
@@ -162,45 +162,18 @@ export function useBookingFlow() {
       setPassengerData(passengers);
       setContactData(contactDetails);
       
-      // Verify that we have all required data
-      if (!selectedFlight.searchKey) {
-        throw new Error("Missing search key for flight");
-      }
+      // BYPASSING REAL PNR GENERATION - USING MOCK DATA INSTEAD
+      console.log("⚠️ BYPASSING REAL PNR GENERATION WITH MOCK DATA");
       
-      if (!selectedFlight.classKey) {
-        throw new Error("Missing class key for flight");
-      }
+      // Generate a mock booking code
+      const mockBookingCode = `MOCK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
       
-      // Verify passenger data is complete
-      for (const passenger of passengers) {
-        if (!passenger.firstName || !passenger.lastName || !passenger.salutation) {
-          throw new Error("Incomplete passenger information");
-        }
-        
-        if (!passenger.passportNumber || !passenger.passportExpiry) {
-          throw new Error("Missing passport information");
-        }
-      }
+      // Wait for a moment to simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Call the PNR generation API
-      const result = await PNRAdapter.generatePNR(
-        passengers,
-        {
-          name: contactDetails.contactName,
-          email: contactDetails.contactEmail,
-          phone: contactDetails.contactPhone
-        },
-        selectedFlight,
-        searchData.tripType === 'return' ? selectedReturnFlight : undefined
-      );
+      console.log("Mock booking code created:", mockBookingCode);
       
-      console.log("PNR generation result:", result);
-      
-      if (!result.bookingCode) {
-        throw new Error("No booking code returned");
-      } 
-      
-      setBookingCode(result.bookingCode);
+      setBookingCode(mockBookingCode);
       setStep(4); // Move to payment
     } catch (err) {
       console.error("PNR generation error:", err);
@@ -209,8 +182,8 @@ export function useBookingFlow() {
       setLoading(false);
     }
   }, [selectedFlight, selectedReturnFlight, searchData]);
-
-  // Step 4: Process Payment
+  
+  // Also update the processPayment function to bypass the real API call
   const processPayment = useCallback(async (paymentDetails: any) => {
     if (!bookingCode) return;
     
@@ -218,16 +191,14 @@ export function useBookingFlow() {
     setError(null);
     
     try {
-      // In a real implementation, you'd process payment first
-      // Then issue the ticket after payment is successful
-      const result = await IssuingAdapter.issueTicket(bookingCode);
+      console.log("⚠️ BYPASSING REAL PAYMENT PROCESSING WITH MOCK DATA");
       
-      if (result.success) {
-        setTicketIssued(true);
-        setStep(5); // Move to confirmation
-      } else {
-        throw new Error('Ticket issuance failed');
-      }
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Mock successful payment and ticket issuance
+      setTicketIssued(true);
+      setStep(5); // Move to confirmation
     } catch (err) {
       console.error("Payment/ticketing error:", err);
       setError(err instanceof Error ? err.message : 'Payment processing failed');

@@ -20,12 +20,15 @@ export default function BookFlight() {
     selectedReturnFlight,
     bookingCode,
     ticketIssued,
+    passengerData,
+    contactData,
     searchFlights,
     selectFlight,
     submitPassengerDetails,
     processPayment,
     resetBooking,
     handleDateChange,
+    calculateTotalPrice,
     goBack
   } = useBookingFlow();
 
@@ -82,7 +85,7 @@ export default function BookFlight() {
 
           {step === 4 && selectedFlight && bookingCode && (
             <PaymentForm
-              amount={selectedFlight.price} // Adjust calculation as needed
+              amount={calculateTotalPrice()}
               bookingCode={bookingCode}
               onSuccess={handlePaymentSuccess}
             />
@@ -91,15 +94,8 @@ export default function BookFlight() {
           {step === 5 && selectedFlight && ticketIssued && (
             <BookingConfirmation
               flight={selectedFlight}
-              bookingData={{
-                passengers: [], // Will be populated in the real component
-                contactDetails: {
-                  contactName: "",
-                  contactEmail: "",
-                  contactPhone: ""
-                },
-                totalAmount: 0 // Will be calculated in the real component
-              }}
+              passengerData={passengerData}
+              contactData={contactData}
               onClose={resetBooking}
             />
           )}
