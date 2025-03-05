@@ -22,7 +22,7 @@
       "dest": "/api/soap-proxy.js"
     },
     {
-      "src": "/payment/(.*)",
+      "src": "/src/payment/(.*)",
       "dest": "/index.html"
     }
   ],
