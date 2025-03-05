@@ -1,5 +1,3 @@
-// src/services/aerodili/client/soap-client.ts
-
 export class SoapClient {
   static async execute(action: string, params: Record<string, any>) {
     try {
@@ -39,23 +37,12 @@ export class SoapClient {
         };
       }
 
-      // Special handling for WsRouteOperate response
-      if (action === 'WsRouteOperate' && result.data) {
-        // Transform the RouteOperates array to a proper array if it's not already
-        if (result.data.RouteOperates && !Array.isArray(result.data.RouteOperates)) {
-          if (result.data.RouteOperates.item && Array.isArray(result.data.RouteOperates.item)) {
-            // If it's in the form of {item: [...]} extract the item array
-            result.data.RouteOperates = result.data.RouteOperates.item;
-          } else {
-            // If it's a single item, wrap it in an array
-            result.data.RouteOperates = [result.data.RouteOperates];
-          }
-        }
-      }
+      // Clean and normalize the response data
+      const cleanedData = this.cleanResponseData(result.data, action);
 
       return {
         success: true,
-        data: result.data
+        data: cleanedData
       };
     } catch (error) {
       console.error('SOAP client error:', error);
@@ -67,6 +54,58 @@ export class SoapClient {
         }
       };
     }
+  }
+
+  // Helper method to clean and normalize response data
+  private static cleanResponseData(data: any, action: string): any {
+    if (!data) return data;
+
+    // Handle specific actions
+    if (action === 'WsRouteOperate' && data.RouteOperates) {
+      // Transform RouteOperates into a clean array
+      let routeItems = [];
+      
+      if (Array.isArray(data.RouteOperates)) {
+        routeItems = data.RouteOperates;
+      } else if (data.RouteOperates.item && Array.isArray(data.RouteOperates.item)) {
+        routeItems = data.RouteOperates.item;
+      } else {
+        routeItems = [data.RouteOperates];
+      }
+      
+      // Clean each item in the array
+      data.RouteOperates = routeItems.map(item => this.cleanXmlObject(item));
+    }
+
+    return this.cleanXmlObject(data);
+  }
+
+  // Recursively clean XML-parsed objects
+  private static cleanXmlObject(obj: any): any {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    // Handle arrays
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.cleanXmlObject(item));
+    }
+    
+    // Handle objects
+    const cleanObj: any = {};
+    
+    for (const key in obj) {
+      // Skip special XML attributes
+      if (key.startsWith('@_') || key === '#text') continue;
+      
+      // Extract text value if it's an XML element object
+      if (obj[key] && typeof obj[key] === 'object' && obj[key]['#text'] !== undefined) {
+        cleanObj[key] = obj[key]['#text'];
+      } else {
+        // Clean nested objects
+        cleanObj[key] = this.cleanXmlObject(obj[key]);
+      }
+    }
+    
+    return cleanObj;
   }
 
   private static createSoapEnvelope(action: string, params: Record<string, any>): string {

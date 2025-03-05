@@ -14,6 +14,28 @@ interface RouteOperation {
   isInternational: boolean;
 }
 
+// Helper function to extract actual text value from XML parsed objects
+function extractTextValue(value: any): string {
+  if (!value) return '';
+  
+  // If it's a string, return it directly
+  if (typeof value === 'string') return value;
+  
+  // If it has #text property (common in XML parsing), return that
+  if (value['#text']) return value['#text'];
+  
+  // For objects with xsi:type attributes
+  if (typeof value === 'object') {
+    // Try to find a text property
+    for (const key in value) {
+      if (key === '#text') return value[key];
+    }
+  }
+  
+  // If we can't extract a text value, stringify the object
+  return String(value);
+}
+
 export class RouteOperationsAdapter {
   static async getRoutes(): Promise<RouteOperation[]> {
     try {
@@ -23,19 +45,31 @@ export class RouteOperationsAdapter {
         throw new Error(response.error?.message || 'Failed to retrieve routes');
       }
 
+      // Extract the RouteOperates array
+      let routeItems = [];
+      if (response.data?.RouteOperates) {
+        if (Array.isArray(response.data.RouteOperates)) {
+          routeItems = response.data.RouteOperates;
+        } else if (response.data.RouteOperates.item && Array.isArray(response.data.RouteOperates.item)) {
+          routeItems = response.data.RouteOperates.item;
+        } else {
+          routeItems = [response.data.RouteOperates];
+        }
+      }
+
       // Transform the response to our required format
-      const routes = response.data.RouteOperates?.map((item: { CityFrom: string; CityFromName: any; CityFromCountry: any; ApoNameFrom: any; CityTo: string; CityToName: any; CityToCountry: any; ApoNameTo: any; TimeZoneTo: any; StatusRoute: string; }) => ({
-        from: item.CityFrom as AirportCode,
-        fromName: item.CityFromName,
-        fromCountry: item.CityFromCountry,
-        fromAirport: item.ApoNameFrom,
-        to: item.CityTo as AirportCode,
-        toName: item.CityToName,
-        toCountry: item.CityToCountry,
-        toAirport: item.ApoNameTo,
-        toTimezone: item.TimeZoneTo,
-        isInternational: item.StatusRoute === 'I'
-      })) || [];
+      const routes = routeItems.map(item => ({
+        from: extractTextValue(item.CityFrom) as AirportCode,
+        fromName: extractTextValue(item.CityFromName),
+        fromCountry: extractTextValue(item.CityFromCountry),
+        fromAirport: extractTextValue(item.ApoNameFrom),
+        to: extractTextValue(item.CityTo) as AirportCode,
+        toName: extractTextValue(item.CityToName),
+        toCountry: extractTextValue(item.CityToCountry),
+        toAirport: extractTextValue(item.ApoNameTo),
+        toTimezone: extractTextValue(item.TimeZoneTo),
+        isInternational: extractTextValue(item.StatusRoute) === 'I'
+      }));
 
       return routes;
     } catch (error) {
