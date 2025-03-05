@@ -12,43 +12,51 @@ interface PaymentSummaryProps {
 }
 
 export function PaymentSummary({ amount, passengers, flightPrice }: PaymentSummaryProps) {
-  // Calculate individual amounts
-  const adultAmount = passengers.adult * flightPrice;
-  const childAmount = passengers.child * flightPrice;
-  const infantAmount = passengers.infant * (flightPrice * 0.1); // 10% of adult fare
-  const totalAmount = adultAmount + childAmount + infantAmount;
+  const adultTotal = passengers.adult * flightPrice;
+  const childTotal = passengers.child * flightPrice;
+  const infantTotal = passengers.infant * (flightPrice * 0.1); // 10% of adult fare
 
   return (
-    <div className="bg-white rounded-lg p-6 mb-6">
-      <h3 className="text-lg font-semibold mb-4">Payment Summary</h3>
+    <div className="bg-white rounded-lg shadow-md p-6">
+      <h3 className="text-lg font-semibold mb-4">Flight Summary</h3>
       
-      <div className="space-y-3">
-        {passengers.adult > 0 && (
-          <div className="flex justify-between">
-            <span>Adult × {passengers.adult}</span>
-            <span>{formatCurrency(adultAmount)}</span>
-          </div>
-        )}
+      <div className="space-y-4">
+        <div className="border-b pb-4">
+          <h4 className="font-medium mb-2">Passenger Breakdown</h4>
+          
+          {passengers.adult > 0 && (
+            <div className="flex justify-between text-sm mb-1">
+              <span>{passengers.adult} x Adult</span>
+              <span>{formatCurrency(adultTotal)}</span>
+            </div>
+          )}
+          
+          {passengers.child > 0 && (
+            <div className="flex justify-between text-sm mb-1">
+              <span>{passengers.child} x Child</span>
+              <span>{formatCurrency(childTotal)}</span>
+            </div>
+          )}
+          
+          {passengers.infant > 0 && (
+            <div className="flex justify-between text-sm mb-1">
+              <span>{passengers.infant} x Infant</span>
+              <span>{formatCurrency(infantTotal)}</span>
+            </div>
+          )}
+        </div>
         
-        {passengers.child > 0 && (
-          <div className="flex justify-between">
-            <span>Child × {passengers.child}</span>
-            <span>{formatCurrency(childAmount)}</span>
+        <div className="border-b pb-4">
+          <h4 className="font-medium mb-2">Fees & Taxes</h4>
+          <div className="flex justify-between text-sm">
+            <span>Airport tax, fuel surcharges & fees</span>
+            <span>{formatCurrency(amount * 0.15)}</span>
           </div>
-        )}
+        </div>
         
-        {passengers.infant > 0 && (
-          <div className="flex justify-between">
-            <span>Infant × {passengers.infant}</span>
-            <span>{formatCurrency(infantAmount)}</span>
-          </div>
-        )}
-
-        <div className="border-t pt-3 font-semibold">
-          <div className="flex justify-between">
-            <span>Total Amount</span>
-            <span className="text-sky-600 text-lg">{formatCurrency(totalAmount)}</span>
-          </div>
+        <div className="flex justify-between font-semibold">
+          <span>Total</span>
+          <span>{formatCurrency(amount)}</span>
         </div>
       </div>
     </div>

@@ -83,10 +83,17 @@ export default function BookFlight() {
             />
           )}
 
-          {step === 4 && selectedFlight && bookingCode && (
+          {step === 4 && selectedFlight && bookingCode && contactData && searchData && (
+            // Updated PaymentForm with all the required props
             <PaymentForm
               amount={calculateTotalPrice()}
-              bookingCode={bookingCode}
+              passengers={searchData.passengers}
+              flightPrice={selectedFlight.price}
+              contactDetails={{
+                contactName: contactData.contactName || "",
+                contactEmail: contactData.contactEmail || "",
+                contactPhone: contactData.contactPhone || ""
+              }}
               onSuccess={handlePaymentSuccess}
             />
           )}
