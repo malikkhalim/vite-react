@@ -10,32 +10,54 @@ export default function PaymentSuccess() {
   const [emailSent, setEmailSent] = useState(false);
   
   useEffect(() => {
-    // First, check if we have URL parameters and clean them up
+    console.log("Payment Success page loaded");
+    
+    // First, extract the query parameters
     const urlParams = new URLSearchParams(window.location.search);
-    const sessionId = urlParams.get('session');
     const reference = urlParams.get('reference');
+    const sessionId = urlParams.get('session');
     const status = urlParams.get('status');
     
-    // If we have URL parameters, clean the URL by redirecting to the clean version
-    if (sessionId || reference || status) {
-      // Replace the current URL with the clean version (no query parameters)
-      window.history.replaceState({}, document.title, window.location.pathname);
+    console.log("Query params:", { reference, sessionId, status });
+    
+    // Clean the URL by removing query parameters - do this immediately
+    if (window.location.search) {
+      const newUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({ path: newUrl }, '', newUrl);
+      console.log("URL cleaned:", newUrl);
     }
     
     // Retrieve payment details from localStorage
     const getPaymentData = () => {
-      // First try to get the active session ID
-      const activeSession = localStorage.getItem('hitpay_active_session');
+      // If we have a reference from URL, use it directly
+      if (reference) {
+        try {
+          const paymentData = localStorage.getItem(`hitpay_payment_${reference}`);
+          if (paymentData) {
+            return JSON.parse(paymentData);
+          }
+        } catch (e) {
+          console.error("Error parsing payment data:", e);
+        }
+      }
+      
+      // If not, check active session or reference
       const activeReference = localStorage.getItem('hitpay_active_reference');
       
-      // If we have a session ID from URL, use that
-      const lookupReference = reference || activeReference;
-      const lookupSessionId = sessionId || activeSession;
+      // If we have an active reference, try to get that payment
+      if (activeReference) {
+        try {
+          const paymentData = localStorage.getItem(`hitpay_payment_${activeReference}`);
+          if (paymentData) {
+            return JSON.parse(paymentData);
+          }
+        } catch (e) {
+          console.error("Error parsing active payment data:", e);
+        }
+      }
       
-      if (!lookupReference && !lookupSessionId) return null;
-      
-      // Check localStorage for payment data
-      const storedPayments = Object.keys(localStorage)
+      // Last resort: search through all hitpay payments in localStorage
+      return Object.keys(localStorage)
         .filter(key => key.startsWith('hitpay_payment_'))
         .map(key => {
           try {
@@ -44,16 +66,12 @@ export default function PaymentSuccess() {
             return null;
           }
         })
-        .filter(Boolean);
-      
-      // Find matching payment - prioritize reference match
-      return storedPayments.find(payment => 
-        (lookupReference && payment.reference === lookupReference) ||
-        (lookupSessionId && payment.id === lookupSessionId)
-      );
+        .filter(Boolean)
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0]; // Get the most recent one
     };
     
     const data = getPaymentData();
+    console.log("Payment data found:", data);
     
     if (data) {
       // Update payment data with completed status
@@ -79,6 +97,8 @@ export default function PaymentSuccess() {
           .then(() => setEmailSent(true))
           .catch((err: any) => console.error('Failed to send email:', err));
       }
+    } else {
+      console.warn("No payment data found");
     }
     
     // Simulate loading for better UX

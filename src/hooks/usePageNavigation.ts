@@ -33,25 +33,26 @@ export function usePageNavigation() {
   // Function to parse URL paths into page types
   const navigateToPath = useCallback((path: string) => {
     const normalizedPath = path.startsWith('/') ? path.substring(1) : path;
+    const basePath = normalizedPath.split('?')[0]; // Remove query parameters
     
-    // Handle payment routes
-    if (normalizedPath.startsWith('payment/success')) return navigateToPage('payment-success');
-    if (normalizedPath.startsWith('payment/cancel')) return navigateToPage('payment-cancel');
-    if (normalizedPath.startsWith('payment/failed')) return navigateToPage('payment-failed');
+    // Handle payment routes - just check the base path
+    if (basePath === 'payment/success') return navigateToPage('payment-success');
+    if (basePath === 'payment/cancel') return navigateToPage('payment-cancel');
+    if (basePath === 'payment/failed') return navigateToPage('payment-failed');
     
     // Handle standard routes
-    if (normalizedPath === '') return navigateToPage('home');
-    if (normalizedPath === 'flight') return navigateToPage('flight');
-    if (normalizedPath === 'cargo') return navigateToPage('cargo');
-    if (normalizedPath === 'profile') return navigateToPage('profile');
-    if (normalizedPath === 'bookings') return navigateToPage('bookings');
+    if (basePath === '') return navigateToPage('home');
+    if (basePath === 'flight') return navigateToPage('flight');
+    if (basePath === 'cargo') return navigateToPage('cargo');
+    if (basePath === 'profile') return navigateToPage('profile');
+    if (basePath === 'bookings') return navigateToPage('bookings');
     
     // Admin routes
-    if (normalizedPath === 'admin' || normalizedPath === 'admin/dashboard') 
+    if (basePath === 'admin' || basePath === 'admin/dashboard') 
       return navigateToPage('admin-dashboard');
-    if (normalizedPath === 'admin/settings') 
+    if (basePath === 'admin/settings') 
       return navigateToPage('admin-settings');
-    if (normalizedPath === 'admin/customers') 
+    if (basePath === 'admin/customers') 
       return navigateToPage('admin-customers');
     
     return navigateToPage('home');

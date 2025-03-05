@@ -42,10 +42,10 @@ export default function App() {
   // Handle path-based navigation after auth check
   useEffect(() => {
     if (authCheckComplete) {
-      // Extract path from current URL
-      const path = window.location.pathname;
-      console.log('Initial path navigation:', path);
-      navigateToPath(path);
+      // Extract path from current URL (without query parameters)
+      const fullPath = window.location.pathname;
+      console.log('Initial path navigation:', fullPath);
+      navigateToPath(fullPath);
     }
   }, [navigateToPath, authCheckComplete]);
 
@@ -88,16 +88,19 @@ export default function App() {
       );
     }
 
-    // Check for payment routes in URL path
+    // Extract path and check for payment routes
     const path = window.location.pathname;
-
-    console.log('Current path:', path);
-
+    
+    // Payment routes should handle both with and without query parameters
     if (path.includes('/payment/success')) {
       return <PaymentSuccess />;
-    } else if (path.includes('/payment/cancel')) {
+    } 
+    
+    if (path.includes('/payment/cancel')) {
       return <PaymentCancel />;
-    } else if (path.includes('/payment/failed')) {
+    } 
+    
+    if (path.includes('/payment/failed')) {
       return <PaymentFailed />;
     }
 
