@@ -1,81 +1,140 @@
 import { useState, useCallback } from 'react';
-import { Flight, BookingFormData } from '../types/flight';
-
-interface BookingData {
-  passengers: any[];
-  contactDetails: {
-    contactName: string;
-    contactEmail: string;
-    contactPhone: string;
-  };
-  totalAmount: number;
-}
+import { FlightSearchAdapter } from '../services/aerodili/adapters/flight-search';
+import { PNRAdapter } from '../services/aerodili/adapters/pnr';
+import { IssuingAdapter } from '../services/aerodili/adapters/issuing';
+import { RetrievePNRAdapter } from '../services/aerodili/adapters/retrieve-pnr';
+import type { BookingFormData, Flight } from '../types/flight';
+import type { PassengerData } from '../types/passenger';
 
 export function useBookingFlow() {
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchData, setSearchData] = useState<BookingFormData | null>(null);
+  const [flights, setFlights] = useState<{ outbound: Flight[], return: Flight[] }>({
+    outbound: [],
+    return: []
+  });
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
-  const [bookingData, setBookingData] = useState<BookingData | null>(null);
+  const [selectedReturnFlight, setSelectedReturnFlight] = useState<Flight | null>(null);
+  const [bookingCode, setBookingCode] = useState<string | null>(null);
+  const [ticketIssued, setTicketIssued] = useState(false);
 
-  const calculateTotalAmount = (flight: Flight, passengers: any) => {
-    const adultPrice = passengers.adult * flight.price;
-    const childPrice = passengers.child * flight.price;
-    const infantPrice = passengers.infant * (flight.price * 0.1); // 10% of adult fare
-    return adultPrice + childPrice + infantPrice;
-  };
-
-  const handleSearch = useCallback((data: BookingFormData) => {
-    setSearchData(data);
-    setStep(2);
-  }, []);
-
-  const handleFlightSelect = useCallback((flight: Flight) => {
-    setSelectedFlight(flight);
-    setStep(3);
-  }, []);
-
-  const handlePassengerSubmit = useCallback((data: any) => {
-    if (selectedFlight && searchData) {
-      const totalAmount = calculateTotalAmount(selectedFlight, searchData.passengers);
-      setBookingData({ ...data, totalAmount });
-      setStep(4);
+  // Search flights
+  const searchFlights = useCallback(async (formData: BookingFormData) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const results = await FlightSearchAdapter.searchFlights(formData);
+      setFlights({
+        outbound: results.outboundFlights,
+        return: results.returnFlights
+      });
+      setSearchData(formData);
+      setStep(2);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Search failed');
+    } finally {
+      setLoading(false);
     }
-  }, [selectedFlight, searchData]);
-
-  const handlePaymentSubmit = useCallback(() => {
-    setStep(5);
   }, []);
 
-  const handleBookingComplete = useCallback(() => {
+  // Select flight
+  const selectFlight = useCallback((flight: Flight, isReturn: boolean = false) => {
+    if (isReturn) {
+      setSelectedReturnFlight(flight);
+    } else {
+      setSelectedFlight(flight);
+    }
+    
+    // Move to passenger details if we have all required flights
+    if (
+      (searchData?.tripType === 'one-way' && !isReturn) || 
+      (searchData?.tripType === 'return' && ((isReturn && selectedFlight) || (!isReturn && selectedReturnFlight)))
+    ) {
+      setStep(3);
+    }
+  }, [searchData?.tripType, selectedFlight, selectedReturnFlight]);
+
+  // Submit passenger details
+  const submitPassengerDetails = useCallback(async (
+    passengers: PassengerData[],
+    contactDetails: { name: string; email: string; phone: string }
+  ) => {
+    if (!selectedFlight || !searchData) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await PNRAdapter.generatePNR(
+        passengers,
+        contactDetails,
+        selectedFlight,
+        searchData.tripType === 'return' ? selectedReturnFlight : undefined
+      );
+      
+      setBookingCode(result.bookingCode);
+      setStep(4); // Move to payment
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create booking');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedFlight, selectedReturnFlight, searchData]);
+
+  // Process payment and issue ticket
+  const processPayment = useCallback(async (paymentDetails: any) => {
+    if (!bookingCode) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // In a real app, you'd process payment through a payment gateway
+      // After successful payment, issue the ticket
+      const result = await IssuingAdapter.issueTicket(bookingCode);
+      
+      if (result.success) {
+        setTicketIssued(true);
+        setStep(5); // Move to confirmation
+      } else {
+        throw new Error('Ticket issuance failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Payment/ticketing failed');
+    } finally {
+      setLoading(false);
+    }
+  }, [bookingCode]);
+
+  // Reset booking flow
+  const resetBooking = useCallback(() => {
     setStep(1);
     setSearchData(null);
+    setFlights({ outbound: [], return: [] });
     setSelectedFlight(null);
-    setBookingData(null);
+    setSelectedReturnFlight(null);
+    setBookingCode(null);
+    setTicketIssued(false);
+    setError(null);
   }, []);
-
-  const handleDateChange = useCallback((date: string) => {
-    if (searchData) {
-      setSearchData({ ...searchData, departureDate: date });
-    }
-  }, [searchData]);
-
-  const goBack = useCallback(() => {
-    if (step > 1) {
-      setStep(step - 1);
-    }
-  }, [step]);
 
   return {
     step,
+    loading,
+    error,
     searchData,
+    flights,
     selectedFlight,
-    bookingData,
-    handleSearch,
-    handleFlightSelect,
-    handlePassengerSubmit,
-    handlePaymentSubmit,
-    handleBookingComplete,
-    handleDateChange,
-    goBack,
+    selectedReturnFlight,
+    bookingCode,
+    ticketIssued,
+    searchFlights,
+    selectFlight,
+    submitPassengerDetails,
+    processPayment,
+    resetBooking
   };
 }

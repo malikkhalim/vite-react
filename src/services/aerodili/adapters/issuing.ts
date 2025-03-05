@@ -1,38 +1,33 @@
 import { SoapClient } from '../client/soap-client';
-import { SOAP_CREDENTIALS } from '../config/endpoints';
-import { IssuingTransformer } from '../utils/issuing-transformer';
-import type { IssuingRequest, IssuingResult } from '../types/issuing';
+import { SOAP_ENDPOINTS } from '../config/endpoints';
 
 export class IssuingAdapter {
-  static async issueTicket(bookingCode: string): Promise<IssuingResult> {
-    try {
-      const request: IssuingRequest = {
-        Username: SOAP_CREDENTIALS.USERNAME,
-        Password: SOAP_CREDENTIALS.PASSWORD,
-        BookingCode: bookingCode
-      };
+  static async issueTicket(bookingCode: string) {
+    const requestData = {
+      Username: 'DILTRAVEL002',
+      Password: 'Abc12345',
+      BookingCode: bookingCode
+    };
 
-      const response = await SoapClient.execute('WsIssuing', request);
+    const response = await SoapClient.execute(
+      SOAP_ENDPOINTS.ISSUING,
+      requestData
+    );
 
-      if (!response.success || response.error) {
-        return {
-          success: false,
-          error: response.error || {
-            code: 'UNKNOWN_ERROR',
-            message: 'Failed to issue ticket'
-          }
-        };
-      }
-
-      return IssuingTransformer.transformResponse(response.data);
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'ISSUING_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to issue ticket'
-        }
-      };
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Ticket issuance failed');
     }
+
+    const passengerTickets = response.data.YourItineraryDetails.PassengerDetails.map((passenger: any) => ({
+      name: `${passenger.Suffix} ${passenger.FirstName} ${passenger.LastName}`,
+      ticketNumber: passenger.TicketNumber
+    }));
+
+    return {
+      success: true,
+      bookingCode: response.data.BookingCode,
+      status: response.data.YourItineraryDetails.ReservationDetails.Status,
+      passengers: passengerTickets
+    };
   }
 }

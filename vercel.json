@@ -1,15 +1,29 @@
 {
-    "functions": {
-      "api/hitpay/payment-requests.js": {
-        "memory": 128,
-        "maxDuration": 10
-      }
+  "functions": {
+    "api/hitpay/payment-requests.js": {
+      "memory": 128,
+      "maxDuration": 10
     },
-    "routes": [
-      {
-        "src": "/api/hitpay/payment-requests",
-        "dest": "/api/hitpay/payment-requests.js"
-      }
-    ]
+    "api/soap-proxy.js": {
+      "memory": 256,
+      "maxDuration": 15
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/hitpay/payment-requests",
+      "dest": "/api/hitpay/payment-requests.js"
+    },
+    {
+      "src": "/api/soap-proxy",
+      "methods": [
+        "POST"
+      ],
+      "dest": "/api/soap-proxy.js"
+    }
+  ],
+  "env": {
+    "AERODILI_USERNAME": "DILTRAVEL002",
+    "AERODILI_PASSWORD": "Abc12345"
   }
-  
+}

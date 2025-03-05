@@ -1,39 +1,40 @@
-import { XMLParser } from 'fast-xml-parser';
-import { SOAP_CREDENTIALS } from '../config/endpoints';
-import type { ApiResponse } from '../types/common';
-
 export class SoapClient {
-  private static readonly API_URL = 'https://api.aerodili.com/v1';
-  private static readonly parser = new XMLParser({
-    ignoreAttributes: false,
-    attributeNamePrefix: '_'
-  });
-
-  static async execute<T>(action: string, params: Record<string, any>): Promise<ApiResponse<T>> {
+  static async execute(action, params) {
     try {
-      const envelope = this.createEnvelope(action, {
-        ...params,
-        Username: SOAP_CREDENTIALS.USERNAME,
-        Password: SOAP_CREDENTIALS.PASSWORD
-      });
-
-      const response = await fetch(this.API_URL, {
+      const envelope = this.createEnvelope(action, params);
+      
+      // Call our Vercel API endpoint
+      const response = await fetch('/api/soap-proxy', {
         method: 'POST',
         headers: {
-          'Content-Type': 'text/xml;charset=UTF-8',
-          'SOAPAction': action
+          'Content-Type': 'application/json',
         },
-        body: envelope
+        body: JSON.stringify({
+          action,
+          envelope
+        })
       });
 
       if (!response.ok) {
-        throw new Error(`SOAP request failed: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || `SOAP request failed: ${response.statusText}`);
       }
 
-      const xmlResponse = await response.text();
-      return this.parseResponse<T>(xmlResponse);
+      const result = await response.json();
+      
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error
+        };
+      }
+
+      return {
+        success: true,
+        data: result.data
+      };
     } catch (error) {
-      console.error(`SOAP ${action} failed:`, error);
+      console.error('SOAP client error:', error);
       return {
         success: false,
         error: {
@@ -44,7 +45,14 @@ export class SoapClient {
     }
   }
 
-  private static createEnvelope(action: string, params: Record<string, any>): string {
+  static createEnvelope(action, params) {
+    // Replace environment variables in params
+    const processedParams = {
+      ...params,
+      Username: process.env.NEXT_PUBLIC_AERODILI_USERNAME || 'DILTRAVEL002',
+      Password: process.env.NEXT_PUBLIC_AERODILI_PASSWORD || 'Abc12345'
+    };
+
     return `
       <soapenv:Envelope 
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -55,11 +63,7 @@ export class SoapClient {
         <soapenv:Body>
           <urn:${action} soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
             <param xsi:type="urn:req${action}" xmlns:urn="urn:webservice">
-              ${Object.entries(params)
-                .map(([key, value]) => 
-                  `<${key} xsi:type="xsd:string">${value}</${key}>`
-                )
-                .join('\n')}
+              ${this.formatParams(processedParams)}
             </param>
           </urn:${action}>
         </soapenv:Body>
@@ -67,33 +71,30 @@ export class SoapClient {
     `;
   }
 
-  private static parseResponse<T>(xmlString: string): ApiResponse<T> {
-    try {
-      const result = this.parser.parse(xmlString);
-      const response = result['soapenv:Envelope']['soapenv:Body'][`ns:${action}Response`];
-
-      if (response.ErrorCode || response.ErrorMessage) {
-        return {
-          success: false,
-          error: {
-            code: response.ErrorCode || 'SOAP_ERROR',
-            message: response.ErrorMessage || 'Unknown error'
-          }
-        };
-      }
-
-      return {
-        success: true,
-        data: response as T
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'PARSE_ERROR',
-          message: 'Failed to parse SOAP response'
+  private static formatParams(params: Record<string, any>): string {
+    return Object.entries(params)
+      .map(([key, value]) => {
+        if (typeof value === 'object' && Array.isArray(value)) {
+          // Handle arrays
+          return `<${key} xsi:type="urn:${key}Array" soapenc:arrayType="urn:InputReqNameArray[${value.length}]">
+            ${value.map((item: any) => this.formatArrayItem(item)).join('')}
+          </${key}>`;
+        } else if (typeof value === 'object' && value !== null) {
+          // Handle nested objects
+          return `<${key}>
+            ${this.formatParams(value)}
+          </${key}>`;
+        } else {
+          // Handle primitive values
+          return `<${key} xsi:type="xsd:string">${value}</${key}>`;
         }
-      };
-    }
+      })
+      .join('\n');
+  }
+
+  private static formatArrayItem(item: any): string {
+    return `<item xsi:type="tns:InputReqNameArray">
+      ${this.formatParams(item)}
+    </item>`;
   }
 }
