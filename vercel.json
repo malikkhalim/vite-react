@@ -20,7 +20,14 @@
         "POST"
       ],
       "dest": "/api/soap-proxy.js"
+    },
+    {
+      "src": "/payment/(.*)",
+      "dest": "/index.html"
     }
+  ],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "env": {
     "AERODILI_USERNAME": "DILTRAVEL002",
