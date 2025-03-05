@@ -15,74 +15,92 @@ export class PNRAdapter {
     flight: Flight,
     returnFlight?: Flight
   ) {
-    const adultPassengers = passengers.filter(p => p.type === 'adult');
-    const childPassengers = passengers.filter(p => p.type === 'child');
-    const infantPassengers = passengers.filter(p => p.type === 'infant');
+    try {
+      console.log("Generating PNR with:", { passengers, contactDetails, flight, returnFlight });
+      
+      const adultPassengers = passengers.filter(p => p.type === 'adult');
+      const childPassengers = passengers.filter(p => p.type === 'child');
+      const infantPassengers = passengers.filter(p => p.type === 'infant');
 
-    const requestData = {
-      Username: 'DILTRAVEL002',
-      Password: 'Abc12345',
-      Received: 'AGENT',
-      ReceivedPhone: contactDetails.phone,
-      Email: contactDetails.email.toUpperCase(),
-      SearchKey: flight.searchKey,
-      AdultNames: adultPassengers.map(p => ({
-        FirstName: p.firstName.toUpperCase(),
-        LastName: p.lastName.toUpperCase(),
-        Suffix: p.salutation,
-        Dob: '-',
-        IdNo: p.passportNumber,
-        Passport: {
-          PassportNumber: p.passportNumber,
-          ExpiryDate: format(new Date(p.passportExpiry), 'dd-MMM-yy')
-        }
-      })),
-      ChildNames: childPassengers.map(p => ({
-        FirstName: p.firstName.toUpperCase(),
-        LastName: p.lastName.toUpperCase(),
-        Suffix: p.salutation,
-        Dob: format(new Date(p.dateOfBirth), 'yyyy-MM-dd'),
-        IdNo: p.passportNumber,
-        Passport: {
-          PassportNumber: p.passportNumber,
-          ExpiryDate: format(new Date(p.passportExpiry), 'dd-MMM-yy')
-        }
-      })),
-      InfantNames: infantPassengers.map((p, index) => ({
-        FirstName: p.firstName.toUpperCase(),
-        LastName: p.lastName.toUpperCase(),
-        Dob: format(new Date(p.dateOfBirth), 'yyyy-MM-dd'),
-        AdultRefference: (index + 1).toString(),
-        Passport: {
-          PassportNumber: p.passportNumber,
-          ExpiryDate: format(new Date(p.passportExpiry), 'dd-MMM-yy')
-        }
-      })),
-      Keys: [
-        {
-          Key: flight.classKey,
-          Category: 'Departure'
-        },
-        ...(returnFlight ? [{
-          Key: returnFlight.classKey,
-          Category: 'Return'
-        }] : [])
-      ]
-    };
+      // Create the request payload
+      const requestData = {
+        Username: 'DILTRAVEL002',
+        Password: 'Abc12345',
+        Received: 'AGENT',
+        ReceivedPhone: contactDetails.phone || '',
+        Email: contactDetails.email ? contactDetails.email.toUpperCase() : '',
+        SearchKey: flight.searchKey || '',
+        AdultNames: adultPassengers.map(p => ({
+          FirstName: p.firstName ? p.firstName.toUpperCase() : '',
+          LastName: p.lastName ? p.lastName.toUpperCase() : '',
+          Suffix: p.salutation || '',
+          Dob: '-',
+          IdNo: p.passportNumber || '',
+          Passport: {
+            PassportNumber: p.passportNumber || '',
+            ExpiryDate: p.passportExpiry ? format(new Date(p.passportExpiry), 'dd-MMM-yy') : ''
+          }
+        })),
+        ChildNames: childPassengers.map(p => ({
+          FirstName: p.firstName ? p.firstName.toUpperCase() : '',
+          LastName: p.lastName ? p.lastName.toUpperCase() : '',
+          Suffix: p.salutation || '',
+          Dob: p.dateOfBirth ? format(new Date(p.dateOfBirth), 'yyyy-MM-dd') : '',
+          IdNo: p.passportNumber || '',
+          Passport: {
+            PassportNumber: p.passportNumber || '',
+            ExpiryDate: p.passportExpiry ? format(new Date(p.passportExpiry), 'dd-MMM-yy') : ''
+          }
+        })),
+        InfantNames: infantPassengers.map((p, index) => ({
+          FirstName: p.firstName ? p.firstName.toUpperCase() : '',
+          LastName: p.lastName ? p.lastName.toUpperCase() : '',
+          Dob: p.dateOfBirth ? format(new Date(p.dateOfBirth), 'yyyy-MM-dd') : '',
+          AdultRefference: (index + 1).toString(),
+          Passport: {
+            PassportNumber: p.passportNumber || '',
+            ExpiryDate: p.passportExpiry ? format(new Date(p.passportExpiry), 'dd-MMM-yy') : ''
+          }
+        })),
+        Keys: [
+          {
+            Key: flight.classKey || '',
+            Category: 'Departure'
+          },
+          ...(returnFlight && returnFlight.classKey ? [{
+            Key: returnFlight.classKey,
+            Category: 'Return'
+          }] : [])
+        ]
+      };
 
-    const response = await SoapClient.execute(
-      SOAP_ENDPOINTS.GENERATE_PNR,
-      requestData
-    );
+      console.log("PNR request data:", requestData);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'PNR generation failed');
+      // Make the SOAP request
+      const response = await SoapClient.execute(
+        'WsGeneratePNR',
+        requestData
+      );
+
+      console.log("PNR response:", response);
+
+      if (!response.success) {
+        throw new Error(response.error?.message || 'PNR generation failed');
+      }
+
+      // Extract booking details from response
+      const bookingCode = response.data?.BookingCode || '';
+      const status = response.data?.YourItineraryDetails?.ReservationDetails?.Status || '';
+      const totalAmount = parseFloat(response.data?.YourItineraryDetails?.PaymentDetails?.Total || '0');
+
+      return {
+        bookingCode,
+        status,
+        totalAmount
+      };
+    } catch (error) {
+      console.error("PNR generation error:", error);
+      throw error;
     }
-
-    return {
-      bookingCode: response.data.BookingCode,
-      status: response.data.YourItineraryDetails.ReservationDetails.Status,
-      totalAmount: parseFloat(response.data.YourItineraryDetails.PaymentDetails.Total)
-    };
   }
 }

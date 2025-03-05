@@ -8,6 +8,7 @@ export interface PassengerData {
   dateOfBirth: string;
   passportNumber: string;
   passportExpiry: string;
+  country: string;
 }
 
 export interface ContactData {

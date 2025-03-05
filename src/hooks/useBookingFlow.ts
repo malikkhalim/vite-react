@@ -149,15 +149,42 @@ export function useBookingFlow() {
     passengers: PassengerData[],
     contactDetails: { contactName: string; contactEmail: string; contactPhone: string }
   ) => {
-    if (!selectedFlight || !searchData) return;
+    if (!selectedFlight || !searchData) {
+      setError("No flight selected. Please select a flight before continuing.");
+      return;
+    }
     
     setLoading(true);
     setError(null);
-    setPassengerData(passengers);
-    setContactData(contactDetails);
     
     try {
-      // Call the actual PNR generation API here
+      console.log("Submitting passenger details:", passengers, contactDetails);
+      
+      // Save data in state
+      setPassengerData(passengers);
+      setContactData(contactDetails);
+      
+      // Verify that we have all required data
+      if (!selectedFlight.searchKey) {
+        throw new Error("Missing search key for flight");
+      }
+      
+      if (!selectedFlight.classKey) {
+        throw new Error("Missing class key for flight");
+      }
+      
+      // Verify passenger data is complete
+      for (const passenger of passengers) {
+        if (!passenger.firstName || !passenger.lastName || !passenger.salutation) {
+          throw new Error("Incomplete passenger information");
+        }
+        
+        if (!passenger.passportNumber || !passenger.passportExpiry) {
+          throw new Error("Missing passport information");
+        }
+      }
+      
+      // Call the PNR generation API
       const result = await PNRAdapter.generatePNR(
         passengers,
         {
@@ -168,6 +195,12 @@ export function useBookingFlow() {
         selectedFlight,
         searchData.tripType === 'return' ? selectedReturnFlight : undefined
       );
+      
+      console.log("PNR generation result:", result);
+      
+      if (!result.bookingCode) {
+        throw new Error("No booking code returned");
+      }
       
       setBookingCode(result.bookingCode);
       setStep(4); // Move to payment
