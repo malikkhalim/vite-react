@@ -17,7 +17,7 @@ export class SoapClient {
       });
 
       if (!response.ok) {
-        throw new Error(`SOAP request failed: ${response.statusText}`);
+        throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
@@ -55,12 +55,11 @@ export class SoapClient {
 
   private static createEnvelope(action: string, params: Record<string, any>): string {
     // Process credentials
-    const credentials = {
+    const allParams = {
       Username: 'DILTRAVEL002',
-      Password: 'Abc12345'
+      Password: 'Abc12345',
+      ...params
     };
-    
-    const allParams = { ...credentials, ...params };
 
     return `
       <soapenv:Envelope 

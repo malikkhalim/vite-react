@@ -1,6 +1,5 @@
 import { format } from 'date-fns';
 import { SoapClient } from '../client/soap-client';
-import { SOAP_ENDPOINTS } from '../config/endpoints';
 import type { BookingFormData, Flight } from '../../../types/flight';
 
 export class FlightSearchAdapter {
@@ -31,79 +30,86 @@ export class FlightSearchAdapter {
         throw new Error(response.error?.message || 'Search failed');
       }
 
-      // TODO: Process actual response
-      // For now, return mock data
-      return this.getMockFlightData(formData);
+      console.log("API Response:", response.data);
+      
+      const searchKey = response.data.SearchKey;
+      
+      // Process outbound flights
+      const outboundTripDetail = response.data.TripDetail.find(
+        (trip: any) => trip.Category === 'Departure'
+      );
+      
+      const outboundFlights = this.processTripDetail(outboundTripDetail, searchKey);
+      
+      // Process return flights if needed
+      let returnFlights: Flight[] = [];
+      if (formData.tripType === 'return') {
+        const returnTripDetail = response.data.TripDetail.find(
+          (trip: any) => trip.Category === 'Return'
+        );
+        
+        if (returnTripDetail) {
+          returnFlights = this.processTripDetail(returnTripDetail, searchKey);
+        }
+      }
+      
+      return {
+        outboundFlights,
+        returnFlights
+      };
     } catch (error) {
       console.error("Flight search error:", error);
-      
-      // Return mock data on error
-      console.log("Falling back to mock data");
-      return this.getMockFlightData(formData);
+      throw error;
     }
   }
 
-  // Mock flight data generator for testing
-  private static getMockFlightData(formData: BookingFormData) {
-    const mockSearchKey = "00000221847678736878717382718985828470867085887";
-    const departureDate = new Date(formData.departureDate);
-    const returnDate = formData.returnDate ? new Date(formData.returnDate) : null;
+  private static processTripDetail(tripDetail: any, searchKey: string): Flight[] {
+    if (!tripDetail || !tripDetail.FlightRoute || !tripDetail.FlightRoute.length) {
+      return [];
+    }
     
-    // Generate a mock flight for outbound
-    const outboundFlight: Flight = {
-      id: 'AE555',
-      from: formData.from,
-      to: formData.to,
-      departureDate: departureDate.toISOString(),
-      arrivalDate: new Date(departureDate.getTime() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours later
-      duration: 120,
-      aircraft: 'Boeing 737-800',
-      price: 299,
-      businessPrice: 599,
-      seatsAvailable: 45,
-      businessSeatsAvailable: 12,
-      baggage: {
-        economy: 23,
-        business: 32
-      },
-      services: {
-        economy: ['Complimentary snacks', 'In-flight entertainment'],
-        business: ['Priority boarding', 'Premium meals', 'Extra legroom']
-      },
-      searchKey: mockSearchKey,
-      classKey: "72753:X:S"
-    };
-    
-    // Generate return flight if needed
-    const returnFlights = formData.tripType === 'return' && returnDate 
-      ? [{
-          id: 'AE556',
-          from: formData.to,
-          to: formData.from,
-          departureDate: returnDate.toISOString(),
-          arrivalDate: new Date(returnDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
-          duration: 120,
-          aircraft: 'Boeing 737-800',
-          price: 299,
-          businessPrice: 599,
-          seatsAvailable: 45,
-          businessSeatsAvailable: 12,
-          baggage: {
-            economy: 23,
-            business: 32
-          },
-          services: {
-            economy: ['Complimentary snacks', 'In-flight entertainment'],
-            business: ['Priority boarding', 'Premium meals', 'Extra legroom']
-          },
-          searchKey: mockSearchKey,
-          classKey: "72754:X:S"
-        }]
-      : [];
-    
-    return {
-      outboundFlights: [outboundFlight],
-      returnFlights: returnFlights
-    };
+    return tripDetail.FlightRoute.map((route: any) => {
+      // Find a valid class option
+      const classOptions = route.ClassesAvailable[0].filter(
+        (classOption: any) => classOption.SeatAvail === 'OPEN'
+      );
+      
+      // Find economy and business class options
+      const economyClass = classOptions.find(
+        (option: any) => ['X', 'V', 'M', 'L', 'K'].includes(option.Class)
+      ) || classOptions[0];
+      
+      const businessClass = classOptions.find(
+        (option: any) => ['Y', 'W', 'S', 'H'].includes(option.Class)
+      ) || classOptions[classOptions.length - 1];
+      
+      // Extract flight details
+      const segment = route.Segments[0];
+      const flightId = `${segment.CarrierCode}${segment.NoFlight}`;
+      
+      return {
+        id: flightId,
+        from: route.CityFrom,
+        to: route.CityTo,
+        departureDate: route.Std,
+        arrivalDate: route.Sta,
+        duration: parseInt(route.FlightTime || '120', 10),
+        aircraft: 'Airbus A320', // Default
+        price: economyClass ? parseFloat(economyClass.Price) : 0,
+        businessPrice: businessClass ? parseFloat(businessClass.Price) : 0,
+        seatsAvailable: economyClass ? parseInt(economyClass.Availability, 10) : 0,
+        businessSeatsAvailable: businessClass ? parseInt(businessClass.Availability, 10) : 0,
+        baggage: {
+          economy: 20,
+          business: 30
+        },
+        services: {
+          economy: ['Complimentary snacks', 'In-flight entertainment'],
+          business: ['Priority boarding', 'Premium meals', 'Extra legroom']
+        },
+        searchKey: searchKey,
+        classKey: economyClass ? economyClass.Key : ''
+      };
+    });
   }
 }

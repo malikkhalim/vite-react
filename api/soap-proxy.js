@@ -11,11 +11,15 @@ export default async function handler(req, res) {
     
     console.log(`Processing ${action} request`);
     
-    const response = await fetch('http://demo-aerodili.nieve.id/wsdl.apiv12/index.php', {
+    // IMPORTANT: Use the correct endpoint URLs
+    const wsdlUrl = 'http://demo-aerodili.nieve.id/wsdl.apiv12/index.php?wsdl';
+    const soapUrl = 'http://demo-aerodili.nieve.id/wsdl.apiv12/index.php';
+    
+    const response = await fetch(wsdlUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml;charset=UTF-8',
-        'SOAPAction': action
+        'SOAPAction': `urn:sj_service#${action}`
       },
       body: envelope
     });
@@ -26,11 +30,22 @@ export default async function handler(req, res) {
 
     const xmlResponse = await response.text();
     
-    // Send the raw XML response back if parsing fails
-    // This allows client-side debugging
+    // Check if the response is HTML instead of XML (error page)
+    if (xmlResponse.includes('<html>') || xmlResponse.includes('<!DOCTYPE html>')) {
+      return res.status(200).json({
+        success: false,
+        error: {
+          message: 'Received HTML response instead of SOAP XML',
+          details: 'The API endpoint returned an HTML page instead of a SOAP response'
+        },
+        xmlResponse: xmlResponse.substring(0, 1000) // First 1000 chars for debugging
+      });
+    }
+    
+    // Parse the XML response
     const options = {
       ignoreAttributes: false,
-      attributeNamePrefix: '_',
+      attributeNamePrefix: '@_',
       parseAttributeValue: false,
       trimValues: true,
       isArray: (name) => {
@@ -45,26 +60,26 @@ export default async function handler(req, res) {
     try {
       const parsedResponse = parser.parse(xmlResponse);
       
-      // Extract the actual response from SOAP envelope
-      const envelope = parsedResponse['SOAP-ENV:Envelope'];
-      if (!envelope) {
+      // Check for SOAP envelope
+      if (!parsedResponse['SOAP-ENV:Envelope']) {
         return res.status(200).json({
           success: false,
           error: { message: 'Invalid SOAP response envelope' },
-          xmlResponse: xmlResponse.substring(0, 1000) // First 1000 chars for debugging
-        });
-      }
-      
-      const body = envelope['SOAP-ENV:Body'];
-      if (!body) {
-        return res.status(200).json({
-          success: false,
-          error: { message: 'Invalid SOAP response body' },
           xmlResponse: xmlResponse.substring(0, 1000)
         });
       }
       
-      // Find the response element - it will have the name format: ns1:{action}Response
+      // Get the response body
+      const body = parsedResponse['SOAP-ENV:Envelope']['SOAP-ENV:Body'];
+      if (!body) {
+        return res.status(200).json({
+          success: false,
+          error: { message: 'Missing SOAP body in response' },
+          xmlResponse: xmlResponse.substring(0, 1000)
+        });
+      }
+      
+      // Find the response element - it will be named after the action
       const responseKey = Object.keys(body).find(key => 
         key.includes(`${action}Response`) || key.endsWith(`:${action}Response`)
       );
@@ -72,18 +87,29 @@ export default async function handler(req, res) {
       if (!responseKey) {
         return res.status(200).json({
           success: false,
-          error: { message: 'Could not find response element in SOAP body' },
-          xmlResponse: xmlResponse.substring(0, 1000),
-          bodyKeys: Object.keys(body)
+          error: { 
+            message: 'Could not find response element in SOAP body',
+            availableKeys: Object.keys(body).join(', ')
+          },
+          xmlResponse: xmlResponse.substring(0, 1000)
         });
       }
       
       const responseObj = body[responseKey];
-      const result = responseObj.return;
+      
+      // Extract the return value
+      if (!responseObj.return) {
+        return res.status(200).json({
+          success: false,
+          error: { message: 'Missing return value in response' },
+          responseObj: responseObj,
+          xmlResponse: xmlResponse.substring(0, 1000)
+        });
+      }
       
       return res.status(200).json({
         success: true,
-        data: result
+        data: responseObj.return
       });
     } catch (parseError) {
       console.error('XML parsing error:', parseError);
@@ -93,7 +119,7 @@ export default async function handler(req, res) {
           message: 'Failed to parse SOAP response',
           details: parseError.message
         },
-        xmlResponse: xmlResponse.substring(0, 1000) // Send first part of XML for debugging
+        xmlResponse: xmlResponse.substring(0, 1000)
       });
     }
   } catch (error) {
