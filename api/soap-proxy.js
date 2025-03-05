@@ -124,6 +124,12 @@ export default async function handler(req, res) {
           xmlResponse: xmlResponse.substring(0, 1000)
         });
       }
+
+      if (action === 'WsGeneratePNR') {
+        console.log("Processing WsGeneratePNR response");
+        // Add the full return value for debugging
+        console.log("Return value:", JSON.stringify(returnValue).substring(0, 500) + '...');
+      }
       
       return res.status(200).json({
         success: true,
