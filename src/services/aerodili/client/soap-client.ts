@@ -54,45 +54,54 @@ export class SoapClient {
   }
 
   private static createSoapEnvelope(action: string, params: Record<string, any>): string {
-    // Prepare default credentials
+    // Prepare default credentials and parameters
     const defaultParams = {
       Username: 'DILTRAVEL002',
       Password: 'Abc12345',
+      ReturnDate: '?',
+      PromoCode: '?',
       ...params
     };
   
-    // Prepare the XML envelope
+    // Ensure required parameters are present
+    const requiredParams = [
+      'Username', 'Password', 'ReturnStatus', 
+      'CityFrom', 'CityTo', 'DepartDate', 
+      'Adult', 'Child', 'Infant'
+    ];
+  
+    requiredParams.forEach(param => {
+      if (!(param in defaultParams)) {
+        throw new Error(`Missing required parameter: ${param}`);
+      }
+    });
+  
     return `<?xml version="1.0" encoding="UTF-8"?>
-    <soapenv:Envelope 
-      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-      xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-      xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
-      xmlns:urn="urn:sj_service"
-      xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
-      <soapenv:Body>
-        <urn:${action} soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-          <param xsi:type="urn:req${action}">
-            ${this.formatParams(defaultParams)}
-          </param>
-        </urn:${action}>
-      </soapenv:Body>
-    </soapenv:Envelope>`;
+  <soapenv:Envelope 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+    xmlns:urn="urn:sj_service">
+    <soapenv:Header/>
+    <soapenv:Body>
+      <urn:${action} soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+        <param xsi:type="urn:req${action}" xmlns:urn="urn:webservice">
+          ${this.formatParams(defaultParams)}
+        </param>
+      </urn:${action}>
+    </soapenv:Body>
+  </soapenv:Envelope>`;
   }
   
   private static formatParams(params: Record<string, any>): string {
     return Object.entries(params)
       .map(([key, value]) => {
-        // Handle null or undefined values
-        if (value === null || value === undefined) {
-          return `<${key} xsi:nil="true" xsi:type="xsd:string"/>`;
+        // Handle null, undefined, or empty values
+        if (value === null || value === undefined || value === '') {
+          return `<${key} xsi:type="xsd:string">?</${key}>`;
         }
   
-        // Handle empty strings
-        if (value === '') {
-          return `<${key} xsi:nil="true" xsi:type="xsd:string"/>`;
-        }
-  
-        // Handle primitive values
+        // Format primitive values
         return `<${key} xsi:type="xsd:string">${value}</${key}>`;
       })
       .join('\n');
