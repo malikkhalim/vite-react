@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     console.log(`Processing ${action} request`);
     
     // Use the correct SOAP endpoint (without ?wsdl)
-    const endpoint = 'http://demo-aerodili.nieve.id/wsdl.apiv12/index.php?wsdl';
+    const endpoint = 'https://demo-aerodili.nieve .id/wsdl.apiv12/index.php';
     
     // Set the correct SOAPAction header format
     const soapAction = `urn:sj_service#${action}`;
