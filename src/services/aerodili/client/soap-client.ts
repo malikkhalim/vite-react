@@ -54,55 +54,54 @@ export class SoapClient {
   }
 
   private static createSoapEnvelope(action: string, params: Record<string, any>): string {
-    // Prepare default credentials and parameters
-    const defaultParams = {
+    // Process credentials
+    const allParams = {
       Username: 'DILTRAVEL002',
       Password: 'Abc12345',
-      ReturnDate: '?',
-      PromoCode: '?',
       ...params
     };
-  
-    // Ensure required parameters are present
-    const requiredParams = [
-      'Username', 'Password', 'ReturnStatus', 
-      'CityFrom', 'CityTo', 'DepartDate', 
-      'Adult', 'Child', 'Infant'
-    ];
-  
-    requiredParams.forEach(param => {
-      if (!(param in defaultParams)) {
-        throw new Error(`Missing required parameter: ${param}`);
-      }
-    });
-  
-    return `<?xml version="1.0" encoding="UTF-8"?>
-  <soapenv:Envelope 
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
-    xmlns:urn="urn:sj_service">
-    <soapenv:Header/>
-    <soapenv:Body>
-      <urn:${action} soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-        <param xsi:type="urn:req${action}" xmlns:urn="urn:webservice">
-          ${this.formatParams(defaultParams)}
-        </param>
-      </urn:${action}>
-    </soapenv:Body>
-  </soapenv:Envelope>`;
+
+    // Create the SOAP envelope with correct namespaces and encoding style
+    return `
+    <?xml version="1.0" encoding="UTF-8"?>
+    <soapenv:Envelope 
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+      xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+      xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" 
+      xmlns:urn="urn:sj_service"
+      xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+      <soapenv:Body>
+        <urn:${action} soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+          <param xsi:type="urn:req${action}">
+            ${this.formatParams(allParams)}
+          </param>
+        </urn:${action}>
+      </soapenv:Body>
+    </soapenv:Envelope>'`;
   }
-  
+
   private static formatParams(params: Record<string, any>): string {
     return Object.entries(params)
       .map(([key, value]) => {
-        // Handle null, undefined, or empty values
-        if (value === null || value === undefined || value === '') {
+        if (value === undefined || value === null || value === '') {
           return `<${key} xsi:type="xsd:string">?</${key}>`;
+        } else if (typeof value === 'object' && Array.isArray(value)) {
+          if (value.length === 0) {
+            return `<${key} xsi:nil="true" xsi:type="SOAP-ENC:Array"/>`;
+          }
+          // Handle arrays
+          return `<${key} xsi:type="SOAP-ENC:Array">
+            ${value.map((item) =>
+            `<item>${typeof item === 'object' ? this.formatParams(item) : item}</item>`
+          ).join('')}
+          </${key}>`;
+        } else if (typeof value === 'object') {
+          // Handle nested objects
+          return `<${key}>${this.formatParams(value)}</${key}>`;
+        } else {
+          // Handle primitive values
+          return `<${key} xsi:type="xsd:string">${value}</${key}>`;
         }
-  
-        // Format primitive values
-        return `<${key} xsi:type="xsd:string">${value}</${key}>`;
       })
       .join('\n');
   }
