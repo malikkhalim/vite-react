@@ -64,7 +64,11 @@ export default async function handler(req, res) {
     const parser = new XMLParser({
       ignoreAttributes: false,
       attributeNamePrefix: '@_',
-      parseAttributeValue: false,
+      parseTagValue: false,         // Don't convert values to native types
+      parseAttributeValue: false,   // Don't convert attribute values
+      numberParseOptions: {
+        skipLike: /.*/              // Skip all number-like strings
+      },
       isArray: (name) => {
         // These elements should always be treated as arrays
         return ['item', 'TripDetail', 'FlightRoute', 'Segments', 'ClassesAvailable'].includes(name);
