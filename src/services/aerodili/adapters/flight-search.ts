@@ -33,7 +33,7 @@ export class FlightSearchAdapter {
 
       console.log("API Response:", response.data);
       
-      const searchKey = response.data.SearchKey;
+      const searchKey = String(response.data.SearchKey);
       let outboundFlights: Flight[] = [];
       let returnFlights: Flight[] = [];
       

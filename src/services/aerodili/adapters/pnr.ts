@@ -34,7 +34,7 @@ export class PNRAdapter {
         childPassengers,
         infantPassengers,
         contactDetails,
-        flight,
+        flight, 
         returnFlight
       );
       
