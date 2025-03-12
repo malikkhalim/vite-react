@@ -15,13 +15,6 @@ export class PNRAdapter {
   ) {
     try {
       console.log("Generating PNR with:", { passengers, contactDetails, flight, returnFlight });
-
-      if (!flight.searchKey) {
-        console.error("Missing search key on flight object:", flight);
-        throw new Error('Missing search key for flight');
-      }
-      
-      console.log("Using search key:", flight.searchKey);
       
       // Filter passengers by type
       const adultPassengers = passengers.filter(p => p.type === 'adult');
@@ -34,11 +27,9 @@ export class PNRAdapter {
         childPassengers,
         infantPassengers,
         contactDetails,
-        flight, 
+        flight,
         returnFlight
       );
-      
-      console.log("PNR envelope:", envelope);
       
       // Send the SOAP request via our proxy
       const response = await fetch('/api/soap-proxy', {
@@ -65,20 +56,51 @@ export class PNRAdapter {
       }
       
       // Extract booking details from response
-      const bookingCode = result.data?.BookingCode;
+      const data = result.data;
+      
+      // Extract key data from response
+      const bookingCode = this.extractValue(data.BookingCode);
+      
       if (!bookingCode) {
         throw new Error('No booking code returned from API');
       }
       
+      // Extract additional useful information
+      const status = this.extractValue(data.YourItineraryDetails?.ReservationDetails?.Status) || 'pending';
+      const balanceDue = parseFloat(this.extractValue(data.YourItineraryDetails?.PaymentDetails?.Total) || '0');
+      const currency = this.extractValue(data.YourItineraryDetails?.PaymentDetails?.CurrencyCode) || 'USD';
+      const timeLimit = this.extractValue(data.YourItineraryDetails?.ReservationDetails?.Time);
+      
+      console.log("Extracted booking details:", {
+        bookingCode,
+        status,
+        balanceDue,
+        currency,
+        timeLimit
+      });
+      
       return {
         bookingCode,
-        status: 'pending',
-        totalAmount: 0
+        status,
+        totalAmount: balanceDue,
+        currency,
+        timeLimit
       };
     } catch (error) {
       console.error("PNR generation error:", error);
       throw error;
     }
+  }
+  
+  // Helper to extract values from complex XML-derived objects
+  private static extractValue(field: any): string | null {
+    if (!field) return null;
+    
+    if (typeof field === 'string') return field;
+    
+    if (field['#text']) return field['#text'];
+    
+    return null;
   }
   
   private static createPnrEnvelope(

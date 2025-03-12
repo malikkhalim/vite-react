@@ -1,10 +1,9 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { FlightSearchAdapter } from '../services/aerodili/adapters/flight-search';
-// import { PNRAdapter } from '../services/aerodili/adapters/pnr';
-// import { IssuingAdapter } from '../services/aerodili/adapters/issuing';
+import { PNRAdapter } from '../services/aerodili/adapters/pnr';
+import { IssuingAdapter } from '../services/aerodili/adapters/issuing';
 import type { Flight, BookingFormData, FlightClass } from '../types/flight';
 import type { PassengerData } from '../types/passenger';
-import { PNRAdapter } from '../services/aerodili/adapters/pnr';
 
 export function useBookingFlow() {
   // Basic state
@@ -24,6 +23,13 @@ export function useBookingFlow() {
   const [ticketIssued, setTicketIssued] = useState(false);
   const [passengerData, setPassengerData] = useState<PassengerData[]>([]);
   const [contactData, setContactData] = useState<any>(null);
+
+  const [bookingDetails, setBookingDetails] = useState<{
+    status: string;
+    totalAmount: number;
+    currency: string;
+    timeLimit?: string;
+  } | null>(null);
 
   // Navigation helper
   const goBack = useCallback(() => {
@@ -162,39 +168,30 @@ export function useBookingFlow() {
       setPassengerData(passengers);
       setContactData(contactDetails);
       
-      // Try with the real PNR generation first
-      try {
-        console.log("Attempting real PNR generation...");
-        
-        const result = await PNRAdapter.generatePNR(
-          passengers,
-          {
-            name: contactDetails.contactName,
-            email: contactDetails.contactEmail,
-            phone: contactDetails.contactPhone
-          },
-          selectedFlight,
-          searchData.tripType === 'return' ? selectedReturnFlight : undefined
-        );
-        
-        console.log("PNR generation successful:", result);
-        
-        setBookingCode(result.bookingCode);
-        setStep(4); // Move to payment
-        return;
-      } catch (pnrError) {
-        console.error("Real PNR generation failed:", pnrError);
-        console.log("Falling back to mock PNR generation...");
-        
-        // If real PNR fails, fall back to mock
-        console.log("⚠️ USING MOCK PNR GENERATION AS FALLBACK");
-        const mockBookingCode = `MOCK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
-        await new Promise(resolve => setTimeout(resolve, 1000)); 
-        console.log("Mock booking code created:", mockBookingCode);
-        
-        setBookingCode(mockBookingCode);
-        setStep(4); // Move to payment
-      }
+      // Try with the real PNR generation
+      const result = await PNRAdapter.generatePNR(
+        passengers,
+        {
+          name: contactDetails.contactName,
+          email: contactDetails.contactEmail,
+          phone: contactDetails.contactPhone
+        },
+        selectedFlight,
+        searchData.tripType === 'return' ? selectedReturnFlight : undefined
+      );
+      
+      console.log("PNR generation successful:", result);
+      
+      // Save booking details for later use
+      setBookingCode(result.bookingCode);
+      setBookingDetails({
+        status: result.status,
+        totalAmount: result.totalAmount,
+        currency: result.currency || 'USD',
+        timeLimit: result.timeLimit || undefined
+      });
+      
+      setStep(4); // Move to payment
     } catch (err) {
       console.error("PNR generation error:", err);
       setError(err instanceof Error ? err.message : 'Failed to create booking');
@@ -202,6 +199,7 @@ export function useBookingFlow() {
       setLoading(false);
     }
   }, [selectedFlight, selectedReturnFlight, searchData]);
+
   
   
   // Also update the processPayment function to bypass the real API call
@@ -244,6 +242,12 @@ export function useBookingFlow() {
 
   // Calculate total price
   const calculateTotalPrice = useCallback(() => {
+    // If we have booking details from the PNR, use that amount
+    if (bookingDetails?.totalAmount) {
+      return bookingDetails.totalAmount;
+    }
+    
+    // Otherwise calculate it from the flight price
     if (!selectedFlight) return 0;
     
     const outboundPrice = searchData?.class === 'business'
@@ -258,7 +262,7 @@ export function useBookingFlow() {
                           (searchData?.passengers.child || 0);
                           
     return (outboundPrice + returnPrice) * passengerCount;
-  }, [selectedFlight, selectedReturnFlight, searchData]);
+  }, [selectedFlight, selectedReturnFlight, searchData, bookingDetails]);
 
   return {
     step,
@@ -272,6 +276,7 @@ export function useBookingFlow() {
     ticketIssued,
     passengerData,
     contactData,
+    bookingDetails,
     searchFlights,
     selectFlight,
     submitPassengerDetails,

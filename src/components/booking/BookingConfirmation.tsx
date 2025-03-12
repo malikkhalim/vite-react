@@ -6,35 +6,28 @@ import { PassengerData } from '../../types/passenger';
 
 interface BookingConfirmationProps {
   flight: Flight;
-  bookingData?: {
-    passengers: any[];
-    contactDetails: {
-      contactName: string;
-      contactEmail: string;
-      contactPhone: string;
-    };
+  bookingCode: string;
+  bookingDetails?: {
+    status: string;
     totalAmount: number;
+    currency: string;
+    timeLimit?: string;
   };
-  onClose: () => void;
   passengerData?: PassengerData[];
   contactData?: any;
+  onClose: () => void;
 }
 
 export default function BookingConfirmation({ 
   flight, 
-  bookingData,
-  onClose,
-  passengerData,
-  contactData
+  bookingCode,
+  bookingDetails,
+  passengerData = [],
+  contactData = {},
+  onClose
 }: BookingConfirmationProps) {
-  const passengers = bookingData?.passengers || passengerData || [];
-  const contactDetails = bookingData?.contactDetails || contactData || {
-    contactName: "Guest",
-    contactEmail: "guest@example.com",
-    contactPhone: ""
-  };
-  const totalAmount = bookingData?.totalAmount || flight.price;
-  const bookingNumber = Math.random().toString(36).substring(2, 10).toUpperCase();
+  const totalAmount = bookingDetails?.totalAmount || flight.price;
+  const currency = bookingDetails?.currency || 'USD';
 
   return (
     <div className="bg-white p-8 rounded-lg shadow-lg max-w-2xl mx-auto">
@@ -43,7 +36,17 @@ export default function BookingConfirmation({
           <Check className="h-6 w-6 text-green-600" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900">Booking Confirmed!</h2>
-        <p className="text-gray-600 mt-2">Booking Reference: {bookingNumber}</p>
+        <p className="text-gray-600 mt-2">Booking Reference: {bookingCode}</p>
+        
+        {bookingDetails?.status && (
+          <p className="text-sky-600 mt-1">Status: {bookingDetails.status}</p>
+        )}
+        
+        {bookingDetails?.timeLimit && (
+          <p className="text-amber-600 mt-1 text-sm">
+            Time Limit: {bookingDetails.timeLimit}
+          </p>
+        )}
       </div>
 
       <div className="border-t border-b border-gray-200 py-4 my-6">
@@ -75,7 +78,7 @@ export default function BookingConfirmation({
       <div className="mb-6">
         <h3 className="font-semibold mb-2">Passenger Details</h3>
         <div className="space-y-4">
-          {passengers.map((passenger, index) => (
+          {passengerData.map((passenger, index) => (
             <div key={index} className="bg-gray-50 p-4 rounded-lg">
               <div className="flex justify-between items-start">
                 <div>
@@ -99,9 +102,9 @@ export default function BookingConfirmation({
       <div className="mb-6">
         <h3 className="font-semibold mb-2">Contact Details</h3>
         <div className="bg-gray-50 p-4 rounded-lg">
-          <p><span className="text-gray-600">Name:</span> {contactDetails.contactName}</p>
-          <p><span className="text-gray-600">Email:</span> {contactDetails.contactEmail}</p>
-          <p><span className="text-gray-600">Phone:</span> {contactDetails.contactPhone}</p>
+          <p><span className="text-gray-600">Name:</span> {contactData.contactName}</p>
+          <p><span className="text-gray-600">Email:</span> {contactData.contactEmail}</p>
+          <p><span className="text-gray-600">Phone:</span> {contactData.contactPhone}</p>
         </div>
       </div>
 
@@ -109,14 +112,14 @@ export default function BookingConfirmation({
         <h3 className="font-semibold mb-2">Payment Details</h3>
         <div className="bg-gray-50 p-4 rounded-lg">
           <p className="text-lg font-medium text-sky-600">
-            Total Amount: {formatCurrency(totalAmount)}
+            Total Amount: {formatCurrency(totalAmount, currency)}
           </p>
         </div>
       </div>
 
       <div className="text-center">
         <p className="text-gray-600 mb-4">
-          A confirmation email has been sent to {contactDetails.contactEmail}
+          A confirmation email has been sent to {contactData.contactEmail}
         </p>
         <button
           onClick={onClose}

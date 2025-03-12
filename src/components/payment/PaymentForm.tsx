@@ -11,6 +11,7 @@ interface PaymentFormProps {
   flightPrice: number;
   flight?: Flight;
   returnFlight: Flight | null;
+  bookingCode?: string;
   contactDetails: {
     contactName: string;
     contactEmail: string;
