@@ -112,7 +112,8 @@ export function PaymentForm({
 
             <div className="flex items-center">
               <button
-                type="submit"
+                type="button" 
+                onClick={handlePaymentSuccess}
                 className="bg-sky-600 text-white px-8 py-3 rounded-md hover:bg-sky-700 transition-colors"
               >
                 Continue to Payment Confirmation
