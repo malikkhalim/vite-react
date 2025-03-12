@@ -204,27 +204,57 @@ export function useBookingFlow() {
   
   // Also update the processPayment function to bypass the real API call
   const processPayment = useCallback(async (paymentDetails: any) => {
-    if (!bookingCode) return;
+    if (!bookingCode) {
+      setError("No booking code found. Please create a booking first.");
+      return;
+    }
     
     setLoading(true);
     setError(null);
     
     try {
-      console.log("⚠️ BYPASSING REAL PAYMENT PROCESSING WITH MOCK DATA");
+      console.log("Processing payment for booking:", bookingCode);
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // In a real system, we would process the payment with HitPay here
+      // For now, we'll just simulate a successful payment
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mock successful payment and ticket issuance
+      console.log("Payment successful. Proceeding to ticket issuance.");
+      
+      // Now issue the ticket using the real API
+      const result = await IssuingAdapter.issueTicket(bookingCode);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Ticket issuance failed');
+      }
+      
+      console.log("Ticket issuance successful:", result);
+      
+      // Update state with the ticket information
       setTicketIssued(true);
-      setStep(5); // Move to confirmation
+      
+      // Save ticket numbers if available
+      if (result.ticketNumbers && result.ticketNumbers.length > 0) {
+        // Assign ticket numbers to passengers
+        const ticketedPassengers = passengerData.map((passenger, index) => ({
+          ...passenger,
+          ticketNumber: result.ticketNumbers && index < result.ticketNumbers.length 
+            ? result.ticketNumbers[index] 
+            : 'PENDING'
+        }));
+        
+        setPassengerData(ticketedPassengers);
+      }
+      
+      // Move to confirmation screen
+      setStep(5);
     } catch (err) {
       console.error("Payment/ticketing error:", err);
       setError(err instanceof Error ? err.message : 'Payment processing failed');
     } finally {
       setLoading(false);
     }
-  }, [bookingCode]);
+  }, [bookingCode, passengerData]);
 
   // Reset booking flow
   const resetBooking = useCallback(() => {

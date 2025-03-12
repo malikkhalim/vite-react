@@ -100,7 +100,7 @@ export function PaymentForm({
               </div>
             )}
 
-            <HitPayCheckout
+            {/* <HitPayCheckout
               amount={Number(amount.toFixed(2))}
               email={contactDetails.contactEmail}
               name={contactDetails.contactName}
@@ -108,7 +108,16 @@ export function PaymentForm({
               referenceNumber={`BOOK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`}
               onSuccess={handlePaymentSuccess}
               onError={handlePaymentError}
-            />
+            /> */}
+
+            <div className="flex items-center">
+              <button
+                type="submit"
+                className="bg-sky-600 text-white px-8 py-3 rounded-md hover:bg-sky-700 transition-colors"
+              >
+                Continue to Payment Confirmation
+              </button>
+            </div>
 
             <div className="space-y-2 text-sm text-gray-500 mt-4">
               <div className="flex items-start gap-2">

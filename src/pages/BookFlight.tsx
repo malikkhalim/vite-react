@@ -87,7 +87,7 @@ export default function BookFlight() {
           {step === 4 && selectedFlight && bookingCode && contactData && searchData && (
             <PaymentForm
               amount={calculateTotalPrice()}
-              bookingCode={bookingCode} 
+              bookingCode={bookingCode}
               passengers={searchData.passengers}
               flightPrice={selectedFlight.price}
               flight={selectedFlight}
@@ -104,10 +104,9 @@ export default function BookFlight() {
           {step === 5 && selectedFlight && ticketIssued && (
             <BookingConfirmation
               flight={selectedFlight}
-              bookingCode={bookingCode || ""}
-              bookingDetails={bookingDetails || undefined}
               passengerData={passengerData}
               contactData={contactData}
+              bookingCode={bookingCode || undefined}
               onClose={resetBooking}
             />
           )}
