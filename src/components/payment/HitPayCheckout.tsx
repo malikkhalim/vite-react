@@ -50,10 +50,10 @@ export function HitPayCheckout({
         currency: HITPAY_CONFIG.CURRENCY,
         reference_number: reference,
         redirect_url: `${origin}${HITPAY_CONFIG.SUCCESS_URL}`,
-        webhook: `${origin}${HITPAY_CONFIG.WEBHOOK_PATH}`,
+        // webhook: `${origin}${HITPAY_CONFIG.WEBHOOK_PATH}`,
         cancel_url: `${origin}${HITPAY_CONFIG.CANCEL_URL}`,
         payment_methods: ['card', 'paynow_online'],
-        // Include API key in the body for the Vercel API route
+        send_email: true,
         apiKey: HITPAY_CONFIG.API_KEY
       };
       
