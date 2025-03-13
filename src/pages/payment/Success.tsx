@@ -3,11 +3,14 @@ import { Check, Download, Mail, Loader2 } from 'lucide-react';
 import { Container } from '../../components/layout/Container';
 import { formatCurrency } from '../../utils/formatting';
 import { sendPaymentConfirmationEmail } from '../../services/email/email';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function PaymentSuccess() {
   const [loading, setLoading] = useState(true);
   const [paymentData, setPaymentData] = useState<any>(null);
   const [emailSent, setEmailSent] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   
   useEffect(() => {
     console.log("Payment Success page loaded");
@@ -17,8 +20,9 @@ export default function PaymentSuccess() {
     const reference = urlParams.get('reference');
     const sessionId = urlParams.get('session');
     const status = urlParams.get('status');
+    const paymentMethod = urlParams.get('payment_method');
     
-    console.log("Query params:", { reference, sessionId, status });
+    console.log("Query params:", { reference, sessionId, status, paymentMethod });
     
     // Clean the URL by removing query parameters - do this immediately
     if (window.location.search) {
@@ -74,11 +78,12 @@ export default function PaymentSuccess() {
     console.log("Payment data found:", data);
     
     if (data) {
-      // Update payment data with completed status
+      // Update payment data with completed status and payment method
       const updatedData = {
         ...data,
         status: status || 'completed',
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        paymentMethod: paymentMethod || data.paymentMethod || 'card'
       };
       
       // Update in localStorage
@@ -105,11 +110,92 @@ export default function PaymentSuccess() {
     setTimeout(() => setLoading(false), 1000);
   }, [emailSent]);
 
+  // Helper function to get human-readable payment method
+  function getPaymentMethodDisplay(method: string | undefined): string {
+    if (!method) return 'Online Payment';
+    
+    const methodMap: Record<string, string> = {
+      'card': 'Credit/Debit Card',
+      'paynow': 'PayNow',
+      'paynow_online': 'PayNow QR',
+      'wallet': 'Digital Wallet'
+    };
+    
+    return methodMap[method.toLowerCase()] || method;
+  }
+
   // Generate PDF for download
-  const handleDownloadItinerary = () => {
-    // In a real app, this would generate a PDF
-    alert('Downloading itinerary...');
-    // Placeholder for PDF generation
+  const handleDownloadItinerary = async () => {
+    try {
+      setGeneratingPdf(true);
+      
+      // Get the receipt element
+      const receiptElement = document.getElementById('payment-receipt');
+      if (!receiptElement) {
+        throw new Error('Receipt element not found');
+      }
+      
+      // Create a clone of the element to modify for PDF generation
+      const printElement = receiptElement.cloneNode(true) as HTMLElement;
+      printElement.style.padding = '20px';
+      printElement.style.width = '595px'; // A4 width in pixels at 72 DPI
+      
+      // Add company logo and branding
+      const logoDiv = document.createElement('div');
+      logoDiv.innerHTML = `
+        <div style="display: flex; align-items: center; margin-bottom: 20px;">
+          <h1 style="margin: 0; font-size: 24px; color: #0369a1;">Timor Pacific Logistics</h1>
+        </div>
+        <h2 style="margin-top: 0; margin-bottom: 20px; font-size: 18px;">Payment Receipt</h2>
+      `;
+      printElement.prepend(logoDiv);
+      
+      // Add footer
+      const footerDiv = document.createElement('div');
+      footerDiv.innerHTML = `
+        <div style="margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 15px; font-size: 12px; color: #6b7280;">
+          <p>Thank you for your business with Timor Pacific Logistics.</p>
+          <p>For any inquiries, please contact support@timorpacificlogistics.com</p>
+        </div>
+      `;
+      printElement.appendChild(footerDiv);
+      
+      // Append to body temporarily
+      document.body.appendChild(printElement);
+      
+      // Generate PDF using html2canvas and jsPDF
+      const canvas = await html2canvas(printElement, {
+        scale: 2, // Higher scale for better quality
+        logging: false,
+        useCORS: true
+      });
+      
+      document.body.removeChild(printElement);
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: 'a4'
+      });
+      
+      // Calculate dimensions
+      const imgWidth = pdf.internal.pageSize.getWidth();
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      
+      // Generate filename with reference number
+      const filename = `TPL_Receipt_${paymentData.reference || 'Unknown'}.pdf`;
+      
+      // Download the PDF
+      pdf.save(filename);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF receipt. Please try again.');
+    } finally {
+      setGeneratingPdf(false);
+    }
   };
   
   // Return to home page
@@ -171,14 +257,24 @@ export default function PaymentSuccess() {
             <h3 className="text-lg font-semibold">Payment Receipt</h3>
             <button
               onClick={handleDownloadItinerary}
-              className="flex items-center gap-2 text-sky-600 hover:text-sky-700"
+              disabled={generatingPdf}
+              className="flex items-center gap-2 text-sky-600 hover:text-sky-700 disabled:opacity-50"
             >
-              <Download className="h-4 w-4" />
-              Download
+              {generatingPdf ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  Download Receipt
+                </>
+              )}
             </button>
           </div>
 
-          <div className="space-y-4">
+          <div id="payment-receipt" className="space-y-4">
             <div className="flex justify-between pb-2 border-b">
               <span className="text-gray-600">Reference Number:</span>
               <span className="font-mono">{paymentData.reference}</span>
@@ -191,7 +287,7 @@ export default function PaymentSuccess() {
             
             <div className="flex justify-between pb-2 border-b">
               <span className="text-gray-600">Payment Method:</span>
-              <span>Credit Card / PayNow</span>
+              <span>{getPaymentMethodDisplay(paymentData.paymentMethod)}</span>
             </div>
 
             <div className="flex justify-between pt-2">
