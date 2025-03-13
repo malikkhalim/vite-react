@@ -15,7 +15,7 @@ interface BookingConfirmationProps {
     };
     totalAmount: number;
   };
-  onClose: () => void;
+  onClose: () => void; 
   passengerData?: PassengerData[];
   contactData?: any;
 }
